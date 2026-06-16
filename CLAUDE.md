@@ -115,3 +115,17 @@ Files: `transactions.json`, `rules.json` (keyword→category),
 - A ~10-line Scriptable **bootstrap loader** fetches latest code from the repo
   URL and runs it (`git push` → tap on phone). Manual paste is the fallback.
 - Only code is fetched over the network; data never leaves the phone.
+
+### Scriptable portability gotcha (cross-module imports)
+
+`module.exports` works in both Node and Scriptable, but **`require` does NOT
+exist in Scriptable** (it uses `importModule`). Any pure module that imports
+another must load it environment-agnostically, or it throws `ReferenceError`
+on the phone:
+
+```js
+const { x } = (typeof require !== 'undefined') ? require('./other') : importModule('other');
+```
+
+Only `parser.js` (imports `lines`) needs this today. `importModule('name')`
+resolves a sibling script by filename from the Scriptable folder.

@@ -1,6 +1,9 @@
 'use strict';
 
-const { isNoise, parseAmount, parseDate } = require('./lines');
+// Load line helpers from whichever module system exists: Node (tests) has
+// `require`; Scriptable on the phone has `importModule` instead.
+const { isNoise, parseAmount, parseDate } =
+  (typeof require !== 'undefined') ? require('./lines') : importModule('lines');
 
 // Apple Vision (via Shortcuts) returns text by COLUMN, not by row: within a
 // date section all merchants appear top-to-bottom, then all amounts in the
