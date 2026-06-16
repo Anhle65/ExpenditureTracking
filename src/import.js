@@ -26,47 +26,85 @@ async function main() {
   const existing = storeFile.loadTransactions();
   const { added, skipped } = dedupe(existing, transactions);
 
-  const proceed = await confirm(added, skipped, warnings);
-  if (!proceed) return;
+  const result = await confirm(added, skipped, warnings);
+  if (!result) return;                          // cancelled
 
-  added.forEach(t => { t.source = 'ocr'; });
-  storeFile.saveTransactions(existing.concat(added));
-  await note(`Saved ${added.length} transaction(s). Skipped ${skipped} duplicate(s).`);
+  const toSave = result.toSave;
+  toSave.forEach(t => { t.source = 'ocr'; });
+  storeFile.saveTransactions(existing.concat(toSave));
+
+  const kept = toSave.length - added.length;    // flagged dups the user kept
+  await note(`Saved ${toSave.length} transaction(s). ` +
+             `Kept ${kept} flagged duplicate(s). ` +
+             `Skipped ${skipped.length - kept}.`);
 }
 
+// Confirm screen. `added` is auto-included; `skipped` rows (flagged duplicates)
+// start excluded and can be tapped to keep — the gate for real same-day repeats.
+// Resolves { toSave } on Save, or null on Cancel.
 function confirm(added, skipped, warnings) {
+  const keep = new Set();            // indices into `skipped` the user keeps
   const table = new UITable();
   table.showSeparators = true;
+  let decision = null;
 
-  const header = new UITableRow();
-  header.isHeader = true;
-  header.addText(`Import ${added.length}  ·  Skip ${skipped} dup`);
-  table.addRow(header);
+  function render() {
+    table.removeAllRows();
 
-  for (const w of warnings) {
-    const r = new UITableRow();
-    r.addText('⚠️ ' + w);
-    table.addRow(r);
+    const header = new UITableRow();
+    header.isHeader = true;
+    header.addText(`Import ${added.length}  ·  ${skipped.length} flagged dup`);
+    table.addRow(header);
+
+    for (const w of warnings) {
+      const r = new UITableRow();
+      r.addText('⚠️ ' + w);
+      table.addRow(r);
+    }
+
+    for (const t of added) {
+      table.addRow(txnRow(t, t.dateUncertain ? ' ⚠︎' : ''));
+    }
+
+    if (skipped.length) {
+      const sh = new UITableRow();
+      sh.isHeader = true;
+      sh.addText('Skipped as duplicate — tap to keep anyway');
+      table.addRow(sh);
+      skipped.forEach((t, i) => {
+        const row = txnRow(t, '', `${t.date} · ${t.reason}`, keep.has(i) ? '✅ ' : '↩︎ ');
+        row.onSelect = () => {
+          if (keep.has(i)) keep.delete(i); else keep.add(i);
+          render();
+          table.reload();
+        };
+        table.addRow(row);
+      });
+    }
+
+    const actions = new UITableRow();
+    const yes = actions.addButton('✅ Save');
+    yes.onTap = () => {
+      const kept = skipped.filter((_, i) => keep.has(i));
+      decision = { toSave: added.concat(kept) };
+      table.dismiss();
+    };
+    const no = actions.addButton('✖ Cancel');
+    no.onTap = () => { decision = null; table.dismiss(); };
+    table.addRow(actions);
   }
 
-  for (const t of added) {
+  function txnRow(t, flag, subtitle, prefix) {
     const r = new UITableRow();
     const sign = t.direction === 'out' ? '-' : '+';
-    const flag = t.dateUncertain ? ' ⚠︎' : '';
-    r.addText(`${t.merchant}${flag}`, `${t.date} · ${t.category}`);
+    const title = `${prefix || ''}${t.merchant}${flag || ''}`;
+    r.addText(title, subtitle || `${t.date} · ${t.category}`);
     const amt = r.addText(`${sign}$${t.amount.toFixed(2)}`);
     amt.rightAligned();
-    table.addRow(r);
+    return r;
   }
 
-  const actions = new UITableRow();
-  const yes = actions.addButton('✅ Save all');
-  yes.onTap = () => { table.dismiss(); decision = true; };
-  const no = actions.addButton('✖ Cancel');
-  no.onTap = () => { table.dismiss(); decision = false; };
-  table.addRow(actions);
-
-  let decision = false;
+  render();
   return table.present().then(() => decision);
 }
 

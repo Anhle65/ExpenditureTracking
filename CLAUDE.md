@@ -98,6 +98,14 @@ Transaction { id, date, amount, direction "out"|"in", merchant, category,
 // id = hash(date + amount + merchant)  → dedupe key
 ```
 
+**Dedup across overlapping screenshots:** `store.dedupe` skips exact id matches,
+and — to gate the dateless leading block whose fallback date can drift between
+screenshots — also treats a row as a duplicate when an existing row has the same
+merchant+amount+direction within ±2 days AND either side's date is `dateUncertain`.
+Confident-date rows are never fuzzy-merged (real separate-day spends are kept).
+The import confirm screen lists skipped rows so a genuine same-day repeat can be
+kept.
+
 Files: `transactions.json`, `rules.json` (keyword→category),
 `overrides.json` (merchant→category, learned from manual fixes).
 
