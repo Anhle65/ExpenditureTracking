@@ -1,0 +1,9 @@
+{
+  "name": "expenditure-tracker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Personal iPhone expense tracker (Shortcuts + Scriptable)",
+  "scripts": {
+    "test": "node --test"
+  }
+}
