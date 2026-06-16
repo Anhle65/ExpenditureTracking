@@ -1,15 +1,16 @@
 'use strict';
 
 const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-const NOISE_WORDS = new Set(['accounts','payments','transfer','cards','apply','go']);
+const NOISE_WORDS = new Set(['accounts','payments','transfer','cards','apply','go',
+                             'pay','details','more']);
 
 function isNoise(line) {
   const t = String(line).trim();
   if (t === '') return true;
   if (/^\d{1,2}:\d{2}$/.test(t)) return true;        // time, e.g. 21:33
   if (/%/.test(t)) return true;                       // battery, e.g. © D 69%
-  if (/2degrees/i.test(t)) return true;               // app title bar
-  if (t.startsWith('<')) return true;                 // back chrome, e.g. < Accounts
+  if (/degrees/i.test(t)) return true;                // app title bar (2degrees; OCR may mangle to "Il degrees")
+  if (t.includes('<')) return true;                   // nav chrome, e.g. < Accounts
   if (NOISE_WORDS.has(t.toLowerCase())) return true;  // bottom nav words
   if (!/[a-z0-9]/i.test(t)) return true;              // symbols only, e.g. $→
   return false;

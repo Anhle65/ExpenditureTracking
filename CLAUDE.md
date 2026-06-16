@@ -106,6 +106,13 @@ Confident-date rows are never fuzzy-merged (real separate-day spends are kept).
 The import confirm screen lists skipped rows so a genuine same-day repeat can be
 kept.
 
+**Transfer detection:** `categorizer.isTransfer` tags rows with a `To:`/`From:`
+prefix or an NZ account number (`BB-bbbb-AAAAAAA-SS`) as category `Transfer`
+(priority: override → transfer → rules → Uncategorized). Bare person-name
+payees can't be distinguished from merchants, so they stay Uncategorized until
+tagged once. The `isNoise` filter drops this bank's chrome (`2degrees`/mangled
+`degrees`, `< Accounts`, Pay/Details/More/Go nav).
+
 Files: `transactions.json`, `rules.json` (keyword→category),
 `overrides.json` (merchant→category, learned from manual fixes).
 

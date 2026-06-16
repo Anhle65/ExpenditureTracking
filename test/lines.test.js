@@ -4,13 +4,15 @@ const { isNoise, parseAmount, parseDate, levenshtein } = require('../src/lines')
 
 test('isNoise flags status bar, nav, and chrome', () => {
   for (const n of ['21:33', '© D 69%', 'Go', '< Accounts', 'all 2degrees a',
-                   '$→', 'Accounts', 'Payments', 'Transfer', 'Cards', 'Apply', '']) {
+                   '$→', 'Accounts', 'Payments', 'Transfer', 'Cards', 'Apply', '',
+                   'Pay', 'Details', 'More', '•Il degrees < Accounts']) {
     assert.equal(isNoise(n), true, `expected noise: ${n}`);
   }
 });
 
 test('isNoise keeps merchant names', () => {
-  for (const m of ['Sample Store A', 'Sample Mart D', 'Sample Bakery E', 'Sample Eatery B']) {
+  for (const m of ['Sample Store A', 'Sample Mart D', 'Sample Bakery E', 'Sample Eatery B',
+                   'To: 06-0805-0962864-02']) {  // transfer line must survive as a "merchant"
     assert.equal(isNoise(m), false, `expected NOT noise: ${m}`);
   }
 });
