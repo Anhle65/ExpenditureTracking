@@ -39,21 +39,32 @@ async function main() {
              `Skipped ${skipped.length - kept}.`);
 }
 
-// Confirm screen. `added` is auto-included; `skipped` rows (flagged duplicates)
-// start excluded and can be tapped to keep — the gate for real same-day repeats.
-// Resolves { toSave } on Save, or null on Cancel.
+// Review screen: present a UITable for review (tap a flagged duplicate to keep
+// it), then — after the user taps the system "Close" — ask Save/Cancel via an
+// Alert. UITable has no dismiss(), so buttons can't close it; this is the
+// supported flow. Resolves { toSave } on Save, or null on Cancel.
 function confirm(added, skipped, warnings) {
-  const keep = new Set();            // indices into `skipped` the user keeps
+  const keep = new Set();             // indices into `skipped` the user keeps
   const table = new UITable();
   table.showSeparators = true;
-  let decision = null;
+
+  function txnRow(t, flag, subtitle, prefix) {
+    const r = new UITableRow();
+    const sign = t.direction === 'out' ? '-' : '+';
+    r.addText(`${prefix || ''}${t.merchant}${flag || ''}`,
+              subtitle || `${t.date} · ${t.category}`);
+    const amt = r.addText(`${sign}$${t.amount.toFixed(2)}`);
+    amt.rightAligned();
+    return r;
+  }
 
   function render() {
     table.removeAllRows();
 
     const header = new UITableRow();
     header.isHeader = true;
-    header.addText(`Import ${added.length}  ·  ${skipped.length} flagged dup`);
+    header.addText(`Import ${added.length} · ${skipped.length} flagged dup`,
+                   'Review, then tap Close (top-left)');
     table.addRow(header);
 
     for (const w of warnings) {
@@ -81,31 +92,21 @@ function confirm(added, skipped, warnings) {
         table.addRow(row);
       });
     }
-
-    const actions = new UITableRow();
-    const yes = actions.addButton('✅ Save');
-    yes.onTap = () => {
-      const kept = skipped.filter((_, i) => keep.has(i));
-      decision = { toSave: added.concat(kept) };
-      table.dismiss();
-    };
-    const no = actions.addButton('✖ Cancel');
-    no.onTap = () => { decision = null; table.dismiss(); };
-    table.addRow(actions);
-  }
-
-  function txnRow(t, flag, subtitle, prefix) {
-    const r = new UITableRow();
-    const sign = t.direction === 'out' ? '-' : '+';
-    const title = `${prefix || ''}${t.merchant}${flag || ''}`;
-    r.addText(title, subtitle || `${t.date} · ${t.category}`);
-    const amt = r.addText(`${sign}$${t.amount.toFixed(2)}`);
-    amt.rightAligned();
-    return r;
   }
 
   render();
-  return table.present().then(() => decision);
+  return table.present(false).then(async () => {
+    const kept = skipped.filter((_, i) => keep.has(i));
+    const a = new Alert();
+    a.title = 'Save these transactions?';
+    a.message = `Import ${added.length} new` +
+                (kept.length ? `, keep ${kept.length} flagged duplicate(s)` : '') + '.';
+    a.addAction('Save');
+    a.addCancelAction('Cancel');
+    const idx = await a.presentAlert();
+    if (idx !== 0) return null;
+    return { toSave: added.concat(kept) };
+  });
 }
 
 async function note(message) {
