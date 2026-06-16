@@ -1,27 +1,31 @@
 'use strict';
 
-// One-time-paste bootstrap. Run it to pull the latest module files from the
-// repo into Scriptable's folder. Only CODE is fetched; transaction DATA never
-// leaves the phone.
-const RAW_BASE = 'https://raw.githubusercontent.com/Anhle65/ExpenditureTracking/main/src';
-const FILES = ['lines.js', 'parser.js', 'categorizer.js', 'store.js',
-               'aggregate.js', 'storeFile.js', 'import.js', 'dashboard.js',
-               'recategorize.js'];
+// One-time-paste bootstrap. Reads manifest.json from the repo, then pulls every
+// listed file into Scriptable's folder. Because the file list lives in the repo,
+// you never need to re-paste this Sync script again when new scripts are added.
+// Only CODE is fetched; transaction DATA never leaves the phone.
+const RAW_BASE = 'https://raw.githubusercontent.com/Anhle65/ExpenditureTracking/main';
 
 const fm = FileManager.iCloud();
 const dir = fm.documentsDirectory();
 
-for (const name of FILES) {
+async function fetchText(repoPath) {
   // ?v=timestamp busts GitHub's CDN cache so we always get the latest push.
-  const req = new Request(`${RAW_BASE}/${name}?v=${Date.now()}`);
+  const req = new Request(`${RAW_BASE}/${repoPath}?v=${Date.now()}`);
   req.headers = { 'Cache-Control': 'no-cache' };
-  const code = await req.loadString();
+  return req.loadString();
+}
+
+const manifest = JSON.parse(await fetchText('manifest.json'));
+for (const repoPath of manifest) {
+  const code = await fetchText(repoPath);
+  const name = repoPath.split('/').pop();   // write as a flat script name
   fm.writeString(fm.joinPath(dir, name), code);
   console.log(`synced ${name} (${code.length} bytes)`);
 }
 
 const a = new Alert();
 a.title = 'Sync complete';
-a.message = `Pulled ${FILES.length} files.`;
+a.message = `Pulled ${manifest.length} files.`;
 a.addAction('OK');
 await a.present();

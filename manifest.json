@@ -1,0 +1,14 @@
+[
+  "src/lines.js",
+  "src/parser.js",
+  "src/categorizer.js",
+  "src/categories.js",
+  "src/store.js",
+  "src/aggregate.js",
+  "src/storeFile.js",
+  "src/import.js",
+  "src/dashboard.js",
+  "src/recategorize.js",
+  "src/addExpense.js",
+  "seedRules.js"
+]

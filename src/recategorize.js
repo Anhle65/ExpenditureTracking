@@ -3,13 +3,14 @@
 // "Recategorize" — native editable list. Tap a row to change its category;
 // the choice is remembered in overrides.json for future imports.
 const storeFile = importModule('storeFile');
+const { DEFAULT_CATEGORIES } = importModule('categories');
 
 const txns = storeFile.loadTransactions();
 const overrides = storeFile.loadOverrides();
 const rules = storeFile.loadRules();
 
 function categoryChoices() {
-  const set = new Set(['Groceries', 'Dining', 'Transport', 'Bills', 'Shopping', 'Income', 'Uncategorized']);
+  const set = new Set(DEFAULT_CATEGORIES);
   rules.forEach(r => set.add(r.category));
   txns.forEach(t => { if (t.category) set.add(t.category); });
   return [...set];
