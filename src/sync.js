@@ -12,7 +12,9 @@ const fm = FileManager.iCloud();
 const dir = fm.documentsDirectory();
 
 for (const name of FILES) {
-  const req = new Request(`${RAW_BASE}/${name}`);
+  // ?v=timestamp busts GitHub's CDN cache so we always get the latest push.
+  const req = new Request(`${RAW_BASE}/${name}?v=${Date.now()}`);
+  req.headers = { 'Cache-Control': 'no-cache' };
   const code = await req.loadString();
   fm.writeString(fm.joinPath(dir, name), code);
   console.log(`synced ${name} (${code.length} bytes)`);
