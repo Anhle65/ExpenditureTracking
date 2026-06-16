@@ -1,0 +1,95 @@
+'use strict';
+
+// One-time helper: writes rules.json into Scriptable's folder so imports
+// auto-categorize. Paste into a NEW Scriptable script, run once. Safe to
+// re-run (it overwrites rules.json). Edit RULES to add your own stores.
+// Ordering matters: specific patterns must come before generic ones they
+// contain (e.g. "chemist warehouse" before "warehouse").
+const RULES = [
+  { pattern: 'countdown', category: 'Groceries' },
+  { pattern: 'woolworths', category: 'Groceries' },
+  { pattern: 'new world', category: 'Groceries' },
+  { pattern: 'pak n save', category: 'Groceries' },
+  { pattern: 'paknsave', category: 'Groceries' },
+  { pattern: 'four square', category: 'Groceries' },
+  { pattern: 'fresh choice', category: 'Groceries' },
+  { pattern: 'freshchoice', category: 'Groceries' },
+  { pattern: 'supervalue', category: 'Groceries' },
+  { pattern: 'farro', category: 'Groceries' },
+
+  { pattern: 'uber eats', category: 'Dining' },
+  { pattern: 'ubereats', category: 'Dining' },
+  { pattern: 'doordash', category: 'Dining' },
+  { pattern: 'mcdonald', category: 'Dining' },
+  { pattern: 'kfc', category: 'Dining' },
+  { pattern: 'burger king', category: 'Dining' },
+  { pattern: 'subway', category: 'Dining' },
+  { pattern: 'domino', category: 'Dining' },
+  { pattern: 'pizza hut', category: 'Dining' },
+  { pattern: 'hell pizza', category: 'Dining' },
+  { pattern: 'nando', category: 'Dining' },
+  { pattern: 'starbucks', category: 'Dining' },
+  { pattern: 'cafe', category: 'Dining' },
+  { pattern: 'bakery', category: 'Dining' },
+  { pattern: 'sushi', category: 'Dining' },
+  { pattern: 'restaurant', category: 'Dining' },
+
+  { pattern: 'z energy', category: 'Transport' },
+  { pattern: 'bp connect', category: 'Transport' },
+  { pattern: 'bp ', category: 'Transport' },
+  { pattern: 'mobil', category: 'Transport' },
+  { pattern: 'caltex', category: 'Transport' },
+  { pattern: 'gull', category: 'Transport' },
+  { pattern: 'waitomo', category: 'Transport' },
+  { pattern: 'npd', category: 'Transport' },
+  { pattern: 'at hop', category: 'Transport' },
+  { pattern: 'metlink', category: 'Transport' },
+  { pattern: 'wilson parking', category: 'Transport' },
+  { pattern: 'parking', category: 'Transport' },
+  { pattern: 'uber', category: 'Transport' },
+
+  { pattern: 'spark', category: 'Bills' },
+  { pattern: 'one nz', category: 'Bills' },
+  { pattern: 'vodafone', category: 'Bills' },
+  { pattern: 'contact energy', category: 'Bills' },
+  { pattern: 'genesis energy', category: 'Bills' },
+  { pattern: 'mercury energy', category: 'Bills' },
+  { pattern: 'meridian energy', category: 'Bills' },
+  { pattern: 'electric kiwi', category: 'Bills' },
+  { pattern: 'powershop', category: 'Bills' },
+  { pattern: 'watercare', category: 'Bills' },
+  { pattern: 'city council', category: 'Bills' },
+  { pattern: 'netflix', category: 'Bills' },
+  { pattern: 'spotify', category: 'Bills' },
+  { pattern: 'disney', category: 'Bills' },
+  { pattern: 'apple.com', category: 'Bills' },
+
+  { pattern: 'chemist warehouse', category: 'Health' },
+  { pattern: 'unichem', category: 'Health' },
+  { pattern: 'life pharmacy', category: 'Health' },
+  { pattern: 'bargain chemist', category: 'Health' },
+
+  { pattern: 'warehouse stationery', category: 'Shopping' },
+  { pattern: 'the warehouse', category: 'Shopping' },
+  { pattern: 'warehouse', category: 'Shopping' },
+  { pattern: 'kmart', category: 'Shopping' },
+  { pattern: 'briscoes', category: 'Shopping' },
+  { pattern: 'mitre 10', category: 'Shopping' },
+  { pattern: 'bunnings', category: 'Shopping' },
+  { pattern: 'farmers', category: 'Shopping' },
+  { pattern: 'noel leeming', category: 'Shopping' },
+  { pattern: 'jb hi', category: 'Shopping' },
+  { pattern: 'harvey norman', category: 'Shopping' },
+  { pattern: 'rebel sport', category: 'Shopping' },
+  { pattern: 'amazon', category: 'Shopping' },
+];
+
+const fm = FileManager.iCloud();
+const path = fm.joinPath(fm.documentsDirectory(), 'rules.json');
+fm.writeString(path, JSON.stringify(RULES, null, 2));
+
+const a = new Alert();
+a.title = 'Rules saved';
+a.message = `Wrote ${RULES.length} rules to rules.json`;
+a.addAction('OK');
+await a.present();
