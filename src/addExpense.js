@@ -41,13 +41,36 @@ async function pickDirection() {
   return idx === 0 ? 'out' : 'in';
 }
 
+// Offer the presets plus any categories already used on stored transactions,
+// plus a free-text "New category…" so you're never limited to the list.
+function categoryChoices() {
+  const set = new Set(DEFAULT_CATEGORIES);
+  storeFile.loadTransactions().forEach(t => { if (t.category) set.add(t.category); });
+  return [...set];
+}
+
 async function pickCategory() {
+  const choices = categoryChoices();
   const a = new Alert();
   a.title = 'Category';
-  DEFAULT_CATEGORIES.forEach(c => a.addAction(c));
+  choices.forEach(c => a.addAction(c));
+  a.addAction('➕ New category…');
   a.addCancelAction('Cancel');
   const idx = await a.presentSheet();
-  return idx === -1 ? null : DEFAULT_CATEGORIES[idx];
+  if (idx === -1) return null;
+  if (idx === choices.length) return askCustomCategory();
+  return choices[idx];
+}
+
+async function askCustomCategory() {
+  const a = new Alert();
+  a.title = 'New category';
+  a.addTextField('Category name, e.g. Pets');
+  a.addAction('OK');
+  a.addCancelAction('Cancel');
+  if (await a.presentAlert() !== 0) return null;
+  const v = String(a.textFieldValue(0)).trim();
+  return v || null;
 }
 
 async function pickDate() {

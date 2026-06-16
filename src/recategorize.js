@@ -22,9 +22,25 @@ async function pickCategory(current) {
   sheet.message = `Currently: ${current}`;
   const choices = categoryChoices();
   choices.forEach(c => sheet.addAction(c));
+  sheet.addAction('➕ New category…');
   sheet.addCancelAction('Cancel');
   const idx = await sheet.presentSheet();
-  return idx === -1 ? null : choices[idx];
+  if (idx === -1) return null;
+  if (idx === choices.length) return askCustomCategory();
+  return choices[idx];
+}
+
+// Free-text category entry, so you're never limited to the preset list.
+// A new name sticks: once used on a transaction it shows up in the list next time.
+async function askCustomCategory() {
+  const a = new Alert();
+  a.title = 'New category';
+  a.addTextField('Category name, e.g. Pets');
+  a.addAction('OK');
+  a.addCancelAction('Cancel');
+  if (await a.presentAlert() !== 0) return null;
+  const v = String(a.textFieldValue(0)).trim();
+  return v || null;
 }
 
 const table = new UITable();
