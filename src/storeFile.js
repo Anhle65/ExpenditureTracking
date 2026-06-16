@@ -21,9 +21,12 @@ function writeJson(name, value) {
 const loadTransactions = () => readJson('transactions.json', []);
 const saveTransactions = (txns) => writeJson('transactions.json', txns);
 const loadRules = () => readJson('rules.json', []);
+const saveRules = (r) => writeJson('rules.json', r);
 const loadOverrides = () => readJson('overrides.json', {});
 const saveOverrides = (o) => writeJson('overrides.json', o);
 
 module.exports = {
-  loadTransactions, saveTransactions, loadRules, loadOverrides, saveOverrides,
+  loadTransactions, saveTransactions,
+  loadRules, saveRules,
+  loadOverrides, saveOverrides,
 };
