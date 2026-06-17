@@ -4,7 +4,7 @@
 // Scriptable home grid or a Home Screen icon. Saves to transactions.json with
 // source "manual".
 const { makeId } = importModule('store');
-const { DEFAULT_CATEGORIES } = importModule('categories');
+const { DEFAULT_CATEGORIES, DEFAULT_ACCOUNTS } = importModule('categories');
 const storeFile = importModule('storeFile');
 
 async function note(message) {
@@ -73,6 +73,34 @@ async function askCustomCategory() {
   return v || null;
 }
 
+function accountChoices() {
+  const set = new Set(DEFAULT_ACCOUNTS);
+  storeFile.loadTransactions().forEach(t => { if (t.account) set.add(t.account); });
+  return [...set];
+}
+
+async function pickAccount() {
+  const choices = accountChoices();
+  const a = new Alert();
+  a.title = 'Account';
+  choices.forEach(c => a.addAction(c));
+  a.addAction('➕ New account…');
+  a.addCancelAction('Cancel');
+  const idx = await a.presentSheet();
+  if (idx === -1) return null;
+  if (idx === choices.length) {
+    const c = new Alert();
+    c.title = 'New account';
+    c.addTextField('Account name, e.g. Savings');
+    c.addAction('OK');
+    c.addCancelAction('Cancel');
+    if (await c.presentAlert() !== 0) return null;
+    const v = String(c.textFieldValue(0)).trim();
+    return v || null;
+  }
+  return choices[idx];
+}
+
 async function pickDate() {
   const today = new Date().toISOString().slice(0, 10);
   const a = new Alert();
@@ -89,6 +117,8 @@ async function pickDate() {
 async function main() {
   const base = await askAmountAndMerchant();
   if (!base) return;
+  const account = await pickAccount();
+  if (!account) return;
   const direction = await pickDirection();
   if (!direction) return;
   const category = await pickCategory();
@@ -102,6 +132,7 @@ async function main() {
     direction,
     merchant: base.merchant,
     category,
+    account,
     source: 'manual',
   };
   txn.id = makeId(txn);
@@ -111,7 +142,7 @@ async function main() {
   storeFile.saveTransactions(all);
 
   const sign = direction === 'out' ? '-' : '+';
-  await note(`Added ${sign}$${base.amount.toFixed(2)} · ${base.merchant} · ${category} on ${date}.`);
+  await note(`Added ${sign}$${base.amount.toFixed(2)} · ${base.merchant} · ${category} · ${account} on ${date}.`);
 }
 
 await main();

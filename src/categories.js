@@ -29,4 +29,8 @@ function renameCategory(data, oldName, newName) {
   return { transactions, overrides, rules };
 }
 
-module.exports = { DEFAULT_CATEGORIES, renameCategory };
+// Accounts separate spending (bank 1, day-to-day) from savings/investment
+// (bank 2). The dashboard filters by account; manual entries pick one.
+const DEFAULT_ACCOUNTS = ['Spending', 'Investment'];
+
+module.exports = { DEFAULT_CATEGORIES, DEFAULT_ACCOUNTS, renameCategory };

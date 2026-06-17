@@ -30,7 +30,7 @@ async function main() {
   if (!result) return;                          // cancelled
 
   const toSave = result.toSave;
-  toSave.forEach(t => { t.source = 'ocr'; });
+  toSave.forEach(t => { t.source = 'ocr'; t.account = t.account || 'Spending'; });
   storeFile.saveTransactions(existing.concat(toSave));
 
   const kept = toSave.length - added.length;    // flagged dups the user kept

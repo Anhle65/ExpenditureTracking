@@ -1,10 +1,11 @@
 'use strict';
 
-// Interactive dashboard: the date-range controls live INSIDE the report. The
-// transactions are embedded into the WebView and all filtering/aggregation runs
-// in-page, so tapping a preset or editing the date fields recomputes instantly.
-// Data stays on the device — it is only rendered in the local WebView.
+// Interactive dashboard. Account tabs (Spending / Investment / All) and the
+// date-range controls live INSIDE the report. Transactions are embedded and all
+// filtering/aggregation runs in-page, so tapping recomputes instantly. Data
+// stays on the device — it is only rendered in the local WebView.
 const storeFile = importModule('storeFile');
+const { DEFAULT_ACCOUNTS } = importModule('categories');
 
 const txns = storeFile.loadTransactions();
 const slim = txns.map(t => ({
@@ -12,7 +13,12 @@ const slim = txns.map(t => ({
   a: Number(t.amount) || 0,
   dir: t.direction === 'in' ? 'in' : 'out',
   c: t.category || 'Uncategorized',
+  acct: t.account || 'Spending',
 }));
+
+const accountSet = new Set(DEFAULT_ACCOUNTS);
+slim.forEach(t => accountSet.add(t.acct));
+const ACCOUNTS = [...accountSet];
 
 function ymd(d) {
   const y = d.getFullYear();
@@ -38,15 +44,17 @@ const PRESETS = [
 ];
 
 // Page script avoids ${} and backticks so it isn't touched by this template
-// literal; only the injected data below uses ${...}.
+// literal; only the injected data uses ${...} via the replaces below.
 const pageJs = `
-var TX = __TX__, PRESETS = __PRESETS__;
+var TX = __TX__, PRESETS = __PRESETS__, ACCOUNTS = __ACCOUNTS__;
 var curStart = PRESETS[0].start, curEnd = PRESETS[0].end;
+var curAccount = ACCOUNTS.indexOf('Spending') >= 0 ? 'Spending' : (ACCOUNTS[0] || 'All');
 
 function compute() {
   var out = 0, inc = 0, cats = {}, months = {};
   for (var i = 0; i < TX.length; i++) {
     var t = TX[i];
+    if (curAccount !== 'All' && t.acct !== curAccount) continue;
     if (t.d < curStart || t.d > curEnd) continue;
     if (t.dir === 'out') {
       out += t.a;
@@ -83,39 +91,55 @@ function render() {
   document.getElementById('start').value = curStart;
   document.getElementById('end').value = curEnd;
 }
-function setActive(idx) {
-  var b = document.querySelectorAll('.tab');
-  for (var j = 0; j < b.length; j++) b[j].className = (j === idx ? 'tab active' : 'tab');
+function highlight(containerId, activeIdx) {
+  var b = document.getElementById(containerId).querySelectorAll('.tab');
+  for (var j = 0; j < b.length; j++) b[j].className = (j === activeIdx ? 'tab active' : 'tab');
 }
-function onPreset(idx) { curStart = PRESETS[idx].start; curEnd = PRESETS[idx].end; setActive(idx); render(); }
+function onPreset(idx) { curStart = PRESETS[idx].start; curEnd = PRESETS[idx].end; highlight('tabs', idx); render(); }
+function onAccount(idx, name) { curAccount = name; highlight('accts', idx); render(); }
 function onDate() {
   curStart = document.getElementById('start').value || curStart;
   curEnd = document.getElementById('end').value || curEnd;
-  setActive(-1);
+  highlight('tabs', -1);
   render();
 }
 (function () {
-  var bar = document.getElementById('tabs');
-  for (var i = 0; i < PRESETS.length; i++) {
+  var acctBar = document.getElementById('accts');
+  var acctLabels = ACCOUNTS.concat(['All']);
+  for (var i = 0; i < acctLabels.length; i++) {
     var b = document.createElement('button');
     b.className = 'tab';
-    b.textContent = PRESETS[i].label;
-    (function (idx) { b.onclick = function () { onPreset(idx); }; })(i);
-    bar.appendChild(b);
+    b.textContent = acctLabels[i];
+    (function (idx, name) { b.onclick = function () { onAccount(idx, name); }; })(i, acctLabels[i]);
+    acctBar.appendChild(b);
   }
-  setActive(0);
+  var defIdx = acctLabels.indexOf(curAccount);
+  highlight('accts', defIdx < 0 ? 0 : defIdx);
+
+  var bar = document.getElementById('tabs');
+  for (var j = 0; j < PRESETS.length; j++) {
+    var p = document.createElement('button');
+    p.className = 'tab';
+    p.textContent = PRESETS[j].label;
+    (function (idx) { p.onclick = function () { onPreset(idx); }; })(j);
+    bar.appendChild(p);
+  }
+  highlight('tabs', 0);
   render();
 })();
-`.replace('__TX__', JSON.stringify(slim)).replace('__PRESETS__', JSON.stringify(PRESETS));
+`.replace('__TX__', JSON.stringify(slim))
+ .replace('__PRESETS__', JSON.stringify(PRESETS))
+ .replace('__ACCOUNTS__', JSON.stringify(ACCOUNTS));
 
 const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   body{font:16px -apple-system;margin:0;padding:16px;background:#111;color:#eee}
   h2{font-size:15px;color:#9af;margin:22px 0 6px}
-  .tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+  .tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
   .tab{font:12px -apple-system;padding:6px 11px;border-radius:14px;border:none;background:#222;color:#ccc}
   .tab.active{background:#5a8;color:#031;font-weight:600}
-  .dates{display:flex;gap:8px;align-items:center;margin-bottom:14px}
+  .accts .tab.active{background:#9af;color:#013}
+  .dates{display:flex;gap:8px;align-items:center;margin:6px 0 14px}
   input[type=date]{background:#222;color:#eee;border:1px solid #333;border-radius:6px;padding:5px 7px;font:13px -apple-system}
   .tot{font-size:26px;font-weight:700} .out{color:#f87} .in{color:#7f7}
   .net{font-size:14px;color:#bbb;margin-top:4px}
@@ -125,6 +149,7 @@ const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=de
   .val{margin-left:auto;font-variant-numeric:tabular-nums}
   .empty{color:#888}
 </style></head><body>
+  <div class="tabs accts" id="accts"></div>
   <div class="tabs" id="tabs"></div>
   <div class="dates">
     <input type="date" id="start" onchange="onDate()">

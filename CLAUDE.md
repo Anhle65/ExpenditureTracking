@@ -94,7 +94,11 @@ remove it.
 
 ```js
 Transaction { id, date, amount, direction "out"|"in", merchant, category,
-              source "ocr"|"manual", rawText }
+              account, source "ocr"|"manual", rawText }
+// account (default "Spending"): separates day-to-day spending from
+// "Investment"/savings. Dashboard has account tabs (default Spending) so a big
+// transfer in the Investment account never distorts spending. Imports tag
+// "Spending"; Add Expense picks the account. DEFAULT_ACCOUNTS in categories.js.
 // id = hash(date + amount + merchant)  → dedupe key
 ```
 
