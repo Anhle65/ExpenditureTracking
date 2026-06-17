@@ -5,7 +5,8 @@ const { isNoise, parseAmount, parseDate, levenshtein } = require('../src/lines')
 test('isNoise flags status bar, nav, and chrome', () => {
   for (const n of ['21:33', '© D 69%', 'Go', '< Accounts', 'all 2degrees a',
                    '$→', 'Accounts', 'Payments', 'Transfer', 'Cards', 'Apply', '',
-                   'Pay', 'Details', 'More', '•Il degrees < Accounts']) {
+                   'Pay', 'Details', 'More', '•Il degrees < Accounts',
+                   '$5,234.69', '$234.69']) {  // unsigned amounts are balances
     assert.equal(isNoise(n), true, `expected noise: ${n}`);
   }
 });
@@ -17,11 +18,14 @@ test('isNoise keeps merchant names', () => {
   }
 });
 
-test('parseAmount reads sign and value', () => {
+test('parseAmount requires a sign, reads spaced signs, ignores unsigned balances', () => {
   assert.deepEqual(parseAmount('-$12.00'), { amount: 12, direction: 'out' });
   assert.deepEqual(parseAmount('-$1,200.00'), { amount: 1200, direction: 'out' });
   assert.deepEqual(parseAmount('+$50.00'), { amount: 50, direction: 'in' });
-  assert.deepEqual(parseAmount('$9.99'), { amount: 9.99, direction: 'in' });
+  assert.deepEqual(parseAmount('- $5,000.00'), { amount: 5000, direction: 'out' });  // bank 2 spaced sign
+  assert.deepEqual(parseAmount('+ $47.25'), { amount: 47.25, direction: 'in' });
+  assert.equal(parseAmount('$9.99'), null);       // unsigned = balance, not a transaction
+  assert.equal(parseAmount('$5,234.69'), null);   // balance
   assert.equal(parseAmount('Sample Store A'), null);
   assert.equal(parseAmount('21:33'), null);
 });

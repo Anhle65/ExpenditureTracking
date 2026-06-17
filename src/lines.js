@@ -12,11 +12,15 @@ function isNoise(line) {
   if (/degrees/i.test(t)) return true;                // app title bar (2degrees; OCR may mangle to "Il degrees")
   if (t.includes('<')) return true;                   // nav chrome, e.g. < Accounts
   if (NOISE_WORDS.has(t.toLowerCase())) return true;  // bottom nav words
+  if (/^\$[\d,]+\.\d{2}$/.test(t)) return true;       // unsigned amount = balance, ignore
   if (!/[a-z0-9]/i.test(t)) return true;              // symbols only, e.g. $→
   return false;
 }
 
-const AMOUNT_RE = /^([-+]?)\$([\d,]+\.\d{2})$/;
+// A real transaction amount MUST carry a sign (+/-). Unsigned amounts are
+// account balances and are ignored. Allows an optional space after the sign
+// (bank 2 writes "- $5,000.00"; bank 1 writes "-$22.40").
+const AMOUNT_RE = /^([-+])\s?\$([\d,]+\.\d{2})$/;
 
 function parseAmount(line) {
   const m = String(line).trim().match(AMOUNT_RE);
