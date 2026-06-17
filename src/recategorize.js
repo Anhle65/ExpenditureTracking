@@ -1,7 +1,7 @@
 'use strict';
 
-// "Recategorize" — native editable list. Tap a row to change its category;
-// the choice is remembered in overrides.json for future imports.
+// "Recategorize" — native editable list. Tap a row to recategorize it (the
+// choice is remembered in overrides.json) or delete a wrong/duplicate entry.
 const storeFile = importModule('storeFile');
 const { DEFAULT_CATEGORIES } = importModule('categories');
 
@@ -43,6 +43,34 @@ async function askCustomCategory() {
   return v || null;
 }
 
+function fmt(t) {
+  const sign = t.direction === 'out' ? '-' : '+';
+  return `${t.date} · ${sign}$${t.amount.toFixed(2)} · ${t.category}`;
+}
+
+// Tap action: Recategorize or Delete.
+async function chooseAction(t) {
+  const a = new Alert();
+  a.title = t.merchant;
+  a.message = fmt(t);
+  a.addAction('Recategorize');
+  a.addDestructiveAction('Delete');
+  a.addCancelAction('Cancel');
+  const idx = await a.presentSheet();
+  if (idx === 0) return 'recategorize';
+  if (idx === 1) return 'delete';
+  return null;
+}
+
+async function confirmDelete(t) {
+  const a = new Alert();
+  a.title = 'Delete this transaction?';
+  a.message = `${t.merchant}\n${fmt(t)}`;
+  a.addDestructiveAction('Delete');
+  a.addCancelAction('Cancel');
+  return (await a.presentSheet()) === 0;
+}
+
 const table = new UITable();
 table.showSeparators = true;
 
@@ -55,15 +83,24 @@ function render() {
     const amt = row.addText(`${sign}$${t.amount.toFixed(2)}`);
     amt.rightAligned();
     row.onSelect = async () => {
-      const cat = await pickCategory(t.category);
-      if (cat) {
-        t.category = cat;
-        overrides[t.merchant.toLowerCase()] = cat; // learn for future imports
-        storeFile.saveTransactions(txns);
-        storeFile.saveOverrides(overrides);
-        render();
-        table.reload();
+      const action = await chooseAction(t);
+      if (action === 'recategorize') {
+        const cat = await pickCategory(t.category);
+        if (cat) {
+          t.category = cat;
+          overrides[t.merchant.toLowerCase()] = cat; // learn for future imports
+          storeFile.saveTransactions(txns);
+          storeFile.saveOverrides(overrides);
+        }
+      } else if (action === 'delete') {
+        if (await confirmDelete(t)) {
+          const i = txns.indexOf(t);
+          if (i >= 0) txns.splice(i, 1);
+          storeFile.saveTransactions(txns);
+        }
       }
+      render();
+      table.reload();
     };
     table.addRow(row);
   }
