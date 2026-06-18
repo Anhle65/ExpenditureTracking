@@ -124,7 +124,7 @@ function spendingPie(map) {
       var a1 = a0 + (v / total) * 2 * Math.PI;
       slices += '<path d="' + arc(cx, cy, ro, ri, a0, a1) + '" fill="' + color +
                 '" data-cat="' + keys[i] + '" data-amt="' + amt + '" onclick="setCenter(this)"></path>';
-      if (pct >= 5) plabels += pctLabel(cx, cy, (ro + ri) / 2, (a0 + a1) / 2, pct);  // skip tiny slices
+      plabels += pctLabel(cx, cy, (ro + ri) / 2, (a0 + a1) / 2, pct);  // label every slice, incl. the smallest
       a0 = a1;
     }
   }
