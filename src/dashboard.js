@@ -274,14 +274,14 @@ const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=de
      category palette colours (in JS) are deliberately NOT themed — they read
      on both backgrounds. */
   :root{
-    --bg:#1c1c1e; --surface:#2f2f31; --surface2:#28282a; --track:#2f2f31; --border:#3a3a3c;
+    --bg:#1c1c1e; --surface:#2f2f31; --track:#2f2f31; --border:#3a3a3c;
     --text:#eee; --text2:#ccc; --text3:#ddd;
     --muted:#888; --muted2:#9a9a9a; --muted3:#777; --legend:#bbb;
     --accent:#9af; --accent-fg:#013; --tab-bg:#5a8; --tab-fg:#031;
     --out:#f87; --in:#7f7;
   }
   [data-theme="light"]{
-    --bg:#f7f7f8; --surface:#ececef; --surface2:#fff; --track:#e3e3e6; --border:#d0d0d5;
+    --bg:#f7f7f8; --surface:#ececef; --track:#e3e3e6; --border:#d0d0d5;
     --text:#1a1a1a; --text2:#444; --text3:#333;
     --muted:#777; --muted2:#666; --muted3:#888; --legend:#555;
     --accent:#2563eb; --accent-fg:#fff; --tab-bg:#2f8f6b; --tab-fg:#fff;
@@ -300,9 +300,13 @@ const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=de
   .dates{display:flex;gap:8px;align-items:center;margin:6px 0 12px}
   .dates .arrow{color:var(--muted);flex:0 0 auto}
   input[type=date]{flex:1;min-width:0;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 7px;font:13px -apple-system}
-  /* Out / In / Net header — three equal, aligned cells, font scales to width */
-  .summary{display:flex;gap:8px;margin:4px 0 6px}
-  .cell{flex:1;min-width:0;background:var(--surface2);border-radius:10px;padding:10px 6px;text-align:center}
+  /* Every display section sits in a card whose background matches the filter
+     buttons (var(--surface)), set off against the page background. */
+  .card{background:var(--surface);border-radius:12px;padding:12px;margin:0 0 12px}
+  .card h2{margin-top:0}
+  /* Out / In / Net header — one card, three transparent equal cells */
+  .summary{display:flex;gap:8px;background:var(--surface);border-radius:12px;padding:12px;margin:4px 0 12px}
+  .cell{flex:1;min-width:0;padding:2px 6px;text-align:center}
   .cap{font-size:11px;color:var(--muted2);text-transform:uppercase;letter-spacing:.04em}
   .amt{font-weight:700;font-variant-numeric:tabular-nums;margin-top:4px;white-space:nowrap;font-size:clamp(14px,4.4vw,20px)}
   .out{color:var(--out)} .in{color:var(--in)}
@@ -320,7 +324,7 @@ const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=de
   .pie-box{flex:1 1 150px;min-width:130px;max-width:230px}
   .pie{width:100%;height:auto;display:block}
   .pie path,.pie circle{cursor:pointer}
-  .pc-hole{fill:var(--bg)}
+  .pc-hole{fill:var(--surface)}
   .hint{color:var(--muted3);font-size:11px;margin:8px 0 0}
   .pc-t{fill:var(--muted2);font-size:9px;text-transform:uppercase}
   .pc-v{fill:var(--text);font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
@@ -353,9 +357,9 @@ const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=de
     <div class="cell"><div class="cap">In</div><div class="amt in" id="in">+$0.00</div></div>
     <div class="cell"><div class="cap">Net</div><div class="amt" id="net">$0.00</div></div>
   </div>
-  <h2>Spending by category</h2><div id="outcats"></div>
-  <h2>Income by category</h2><div id="incats"></div>
-  <h2>Trend (out vs in)</h2><div id="trend"></div>
+  <div class="card"><h2>Spending by category</h2><div id="outcats"></div></div>
+  <div class="card"><h2>Income by category</h2><div id="incats"></div></div>
+  <div class="card"><h2>Trend (out vs in)</h2><div id="trend"></div></div>
   <script>${pageJs}</script>
 </body></html>`;
 
