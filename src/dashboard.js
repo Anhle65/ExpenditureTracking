@@ -96,23 +96,27 @@ function spendingPie(map) {
   // Amounts are private (not shown on screen); tapping a slice or its legend
   // colour pops a tooltip with that category's amount. Slices are individual
   // SVG paths so each is tappable.
-  var cx = 60, cy = 60, ro = 46, ri = 30, a0 = -Math.PI / 2, slices = '';
+  // Each slice is its own tappable SVG path, with its % drawn on the slice.
+  var cx = 60, cy = 60, ro = 46, ri = 30, a0 = -Math.PI / 2, slices = '', plabels = '';
   for (i = 0; i < keys.length; i++) {
     var v = map[keys[i]], color = PALETTE[i % PALETTE.length], amt = '$' + v.toFixed(2);
+    var pct = v / total * 100;
     if (keys.length === 1) {
       slices += '<circle cx="' + cx + '" cy="' + cy + '" r="' + ro + '" fill="' + color +
                 '" data-cat="' + keys[i] + '" data-amt="' + amt + '" onclick="setCenter(this)"></circle>';
+      plabels += pctLabel(cx, cy, (ro + ri) / 2, -Math.PI / 2, pct);
     } else {
       var a1 = a0 + (v / total) * 2 * Math.PI;
       slices += '<path d="' + arc(cx, cy, ro, ri, a0, a1) + '" fill="' + color +
                 '" data-cat="' + keys[i] + '" data-amt="' + amt + '" onclick="setCenter(this)"></path>';
+      if (pct >= 5) plabels += pctLabel(cx, cy, (ro + ri) / 2, (a0 + a1) / 2, pct);  // skip tiny slices
       a0 = a1;
     }
   }
   // The donut centre is the display: TOTAL by default; tap the hole to reset.
   var hole = '<circle cx="' + cx + '" cy="' + cy + '" r="' + ri + '" fill="#111" data-cat="TOTAL" data-amt="$' +
              total.toFixed(2) + '" onclick="setCenter(this)"></circle>';
-  var svg = '<svg viewBox="0 0 120 120" class="pie">' + slices + hole +
+  var svg = '<svg viewBox="0 0 120 120" class="pie">' + slices + plabels + hole +
             '<text id="pc-label" x="60" y="56" class="pc-t" text-anchor="middle" pointer-events="none">TOTAL</text>' +
             '<text id="pc-amount" x="60" y="70" class="pc-v" text-anchor="middle" pointer-events="none">$' + total.toFixed(2) + '</text></svg>';
 
@@ -121,8 +125,7 @@ function spendingPie(map) {
     var v2 = map[keys[i]];
     legend += '<div class="lrow" data-cat="' + keys[i] + '" data-amt="$' + v2.toFixed(2) + '" onclick="setCenter(this)">' +
               '<span class="sw" style="background:' + PALETTE[i % PALETTE.length] + '"></span>' +
-              '<span class="lname">' + keys[i] + '</span>' +
-              '<span class="lpct">' + (v2 / total * 100).toFixed(0) + '%</span></div>';
+              '<span class="lname">' + keys[i] + '</span></div>';
   }
   legend += '</div>';
   return '<div class="pie-wrap"><div class="pie-box">' + svg + '</div>' + legend + '</div>' +
@@ -130,6 +133,13 @@ function spendingPie(map) {
 }
 
 function trunc(s, n) { s = String(s); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
+
+// A "NN%" label centred at radius r / angle ang (radians) on the donut.
+function pctLabel(cx, cy, r, ang, pct) {
+  var x = (cx + r * Math.cos(ang)).toFixed(2), y = (cy + r * Math.sin(ang)).toFixed(2);
+  return '<text x="' + x + '" y="' + y + '" text-anchor="middle" dominant-baseline="central" ' +
+         'class="slice-pct" pointer-events="none">' + pct.toFixed(0) + '%</text>';
+}
 
 // Donut-segment path from angle a0 to a1 (radians), outer ro, inner ri.
 function arc(cx, cy, ro, ri, a0, a1) {
@@ -267,19 +277,20 @@ const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=de
   .val{flex:0 0 auto;font-size:13px;font-variant-numeric:tabular-nums;color:#ddd}
   .empty{color:#888;font-size:13px;margin:4px 0}
   /* spending donut + legend: pie beside legend on wide, stacks on narrow */
-  /* pie stretches to fill the left; legend (name + %) sits on the right */
-  .pie-wrap{display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;margin-top:4px}
-  .pie-box{flex:1 1 160px;min-width:150px;max-width:260px}
+  /* pie stretches to fill the left; legend (name + %) sits to its right */
+  .pie-wrap{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:4px}
+  .pie-box{flex:1 1 150px;min-width:130px;max-width:230px}
   .pie{width:100%;height:auto;display:block}
   .pie path,.pie circle{cursor:pointer}
   .hint{color:#777;font-size:11px;margin:8px 0 0}
   .pc-t{fill:#9a9a9a;font-size:9px;text-transform:uppercase}
   .pc-v{fill:#eee;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
-  .legend{flex:0 0 auto}
-  .lrow{display:flex;align-items:center;gap:8px;margin:6px 0;cursor:pointer}
+  .slice-pct{fill:#fff;font-size:7px;font-weight:700;paint-order:stroke;stroke:rgba(0,0,0,.5);stroke-width:1.6px}
+  .legend{flex:0 1 auto;min-width:0}
+  .lrow{display:flex;align-items:center;gap:7px;margin:6px 0;cursor:pointer}
   .sw{flex:0 0 auto;width:11px;height:11px;border-radius:2px}
-  .lname{flex:0 0 88px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:#ccc}
-  .lpct{flex:0 0 auto;width:34px;text-align:right;font-size:12px;color:#9a9a9a;font-variant-numeric:tabular-nums}
+  .lname{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:#ccc}
+  .lpct{flex:0 0 auto;width:32px;text-align:right;font-size:12px;color:#9a9a9a;font-variant-numeric:tabular-nums}
   /* trend: SVG line chart (out red, in green) + small legend */
   .tlegend{display:flex;gap:14px;font-size:12px;color:#bbb;margin:2px 0 2px}
   .tk{display:flex;align-items:center;gap:5px}
