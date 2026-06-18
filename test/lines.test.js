@@ -18,6 +18,13 @@ test('isNoise keeps merchant names', () => {
   }
 });
 
+test('isNoise accepts extra bank-specific noise words', () => {
+  assert.equal(isNoise('Summary'), false);                        // default: kept
+  assert.equal(isNoise('Summary', ['summary', 'more options']), true);
+  assert.equal(isNoise('More options', ['summary', 'more options']), true);
+  assert.equal(isNoise('TD INTEREST EX AC', ['summary', 'more options']), false);
+});
+
 test('parseAmount requires a sign, reads spaced signs, ignores unsigned balances', () => {
   assert.deepEqual(parseAmount('-$12.00'), { amount: 12, direction: 'out' });
   assert.deepEqual(parseAmount('-$1,200.00'), { amount: 1200, direction: 'out' });

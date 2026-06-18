@@ -24,9 +24,12 @@ const loadRules = () => readJson('rules.json', []);
 const saveRules = (r) => writeJson('rules.json', r);
 const loadOverrides = () => readJson('overrides.json', {});
 const saveOverrides = (o) => writeJson('overrides.json', o);
+const loadBanks = () => readJson('banks.json', null);
+const saveBanks = (b) => writeJson('banks.json', b);
 
 module.exports = {
   loadTransactions, saveTransactions,
   loadRules, saveRules,
   loadOverrides, saveOverrides,
+  loadBanks, saveBanks,
 };

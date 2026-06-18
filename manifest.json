@@ -1,6 +1,9 @@
 [
   "src/lines.js",
   "src/parser.js",
+  "src/engine.js",
+  "src/profiles.js",
+  "src/detect.js",
   "src/categorizer.js",
   "src/categories.js",
   "src/store.js",

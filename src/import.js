@@ -2,17 +2,40 @@
 
 // Called by the "Import Expenses" Shortcut. The Shortcut runs Apple Vision OCR
 // ("Extract Text from Image") and passes the text as the script parameter.
-const { parseOcr } = importModule('parser');
+const { parseWithProfile } = importModule('engine');
+const { detectBank } = importModule('detect');
+const { BANK1, BANK2 } = importModule('profiles');
 const { categorize } = importModule('categorizer');
 const { dedupe } = importModule('store');
 const storeFile = importModule('storeFile');
+
+const BUILTIN_BANKS = [BANK1, BANK2];
+
+function allBanks() {
+  const saved = storeFile.loadBanks();
+  return (Array.isArray(saved) && saved.length) ? saved : BUILTIN_BANKS;
+}
+
+async function chooseBank(banks) {
+  const a = new Alert();
+  a.title = 'Which bank?';
+  a.message = 'Could not auto-detect the bank for this screenshot.';
+  banks.forEach(b => a.addAction(b.name));
+  a.addCancelAction('Cancel');
+  const idx = await a.presentSheet();
+  return idx === -1 ? null : banks[idx];
+}
 
 async function main() {
   const ocrText = (args.plainTexts && args.plainTexts[0]) || args.shortcutParameter || '';
   if (!ocrText) { await note('No OCR text received from the Shortcut.'); return; }
 
   const today = new Date().toISOString().slice(0, 10); // screenshot/today fallback
-  const { transactions, warnings } = parseOcr(ocrText, { fallbackDate: today });
+  const banks = allBanks();
+  const det = detectBank(ocrText, banks);
+  const bank = det.confident ? det.bank : await chooseBank(banks);
+  if (!bank) return;                                   // user cancelled the picker
+  const { transactions, warnings } = parseWithProfile(ocrText, bank, { fallbackDate: today });
 
   if (transactions.length === 0) {
     await note('No transactions found. Raw OCR text:\n\n' + ocrText);
@@ -30,7 +53,7 @@ async function main() {
   if (!result) return;                          // cancelled
 
   const toSave = result.toSave;
-  toSave.forEach(t => { t.source = 'ocr'; t.account = t.account || 'Spending'; });
+  toSave.forEach(t => { t.source = 'ocr'; t.account = t.account || bank.defaultAccount || 'Spending'; });
   storeFile.saveTransactions(existing.concat(toSave));
 
   const kept = toSave.length - added.length;    // flagged dups the user kept
