@@ -56,17 +56,20 @@ var curAccount = ACCOUNTS.indexOf('Spending') >= 0 ? 'Spending' : (ACCOUNTS[0] |
 var PALETTE = ['#ef4444','#3b82f6','#22c55e','#f59e0b','#a855f7','#ec4899','#06b6d4','#84cc16','#f97316','#14b8a6','#eab308','#94a3b8'];
 
 function compute() {
-  var out = 0, inc = 0, outCats = {}, inCats = {}, months = {};
+  // Short ranges (<= ~2 months) bucket the trend by DAY so a single month shows a
+  // daily trend; longer ranges bucket by month.
+  var byDay = (Date.parse(curEnd) - Date.parse(curStart)) <= 62 * 86400000;
+  var out = 0, inc = 0, outCats = {}, inCats = {}, buckets = {};
   for (var i = 0; i < TX.length; i++) {
     var t = TX[i];
     if (curAccount !== 'All' && t.acct !== curAccount) continue;
     if (t.d < curStart || t.d > curEnd) continue;
-    var ym = t.d.slice(0, 7);
-    if (!months[ym]) months[ym] = { out: 0, inc: 0 };
-    if (t.dir === 'out') { out += t.a; outCats[t.c] = (outCats[t.c] || 0) + t.a; months[ym].out += t.a; }
-    else { inc += t.a; inCats[t.c] = (inCats[t.c] || 0) + t.a; months[ym].inc += t.a; }
+    var key = byDay ? t.d : t.d.slice(0, 7);
+    if (!buckets[key]) buckets[key] = { out: 0, inc: 0 };
+    if (t.dir === 'out') { out += t.a; outCats[t.c] = (outCats[t.c] || 0) + t.a; buckets[key].out += t.a; }
+    else { inc += t.a; inCats[t.c] = (inCats[t.c] || 0) + t.a; buckets[key].inc += t.a; }
   }
-  return { out: out, inc: inc, outCats: outCats, inCats: inCats, months: months };
+  return { out: out, inc: inc, outCats: outCats, inCats: inCats, buckets: buckets, byDay: byDay };
 }
 
 function catRows(map, cls) {
@@ -143,31 +146,34 @@ function setCenter(el) {
   document.getElementById('pc-amount').textContent = el.getAttribute('data-amt');
 }
 
-// Trend as an SVG line chart: an out line (red) and an in line (green) across
-// months. Shape shows the trend; exact amounts stay private (no value labels).
-function trendLines(months) {
-  var keys = Object.keys(months).sort();
+// Trend as an SVG line chart: an out line (red) and an in line (green). When
+// byDay is true the x-axis is by date (day of month); otherwise by month.
+function trendLines(buckets, byDay) {
+  var keys = Object.keys(buckets).sort();
   if (!keys.length) return '<p class="empty">None in range.</p>';
   var MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   var max = 1, i;
   for (i = 0; i < keys.length; i++) {
-    if (months[keys[i]].out > max) max = months[keys[i]].out;
-    if (months[keys[i]].inc > max) max = months[keys[i]].inc;
+    if (buckets[keys[i]].out > max) max = buckets[keys[i]].out;
+    if (buckets[keys[i]].inc > max) max = buckets[keys[i]].inc;
   }
   var W = 320, H = 168, padL = 8, padR = 8, padT = 12, padB = 22;
   var plotW = W - padL - padR, plotH = H - padT - padB, n = keys.length;
   function x(i) { return n === 1 ? padL + plotW / 2 : padL + i * (plotW / (n - 1)); }
   function y(v) { return padT + plotH * (1 - v / max); }
+  function label(k) { return byDay ? String(parseInt(k.slice(8, 10), 10)) : MON[parseInt(k.slice(5, 7), 10) - 1]; }
+  var step = Math.ceil(n / 8);   // at most ~8 x-axis labels so they don't crowd
 
   var outPts = '', inPts = '', dots = '', labels = '';
   for (i = 0; i < keys.length; i++) {
-    var o = months[keys[i]].out, m = months[keys[i]].inc, px = x(i).toFixed(1);
+    var o = buckets[keys[i]].out, m = buckets[keys[i]].inc, px = x(i).toFixed(1);
     outPts += px + ',' + y(o).toFixed(1) + ' ';
     inPts += px + ',' + y(m).toFixed(1) + ' ';
     dots += '<circle cx="' + px + '" cy="' + y(o).toFixed(1) + '" r="2.6" fill="#ef4444"></circle>' +
             '<circle cx="' + px + '" cy="' + y(m).toFixed(1) + '" r="2.6" fill="#22c55e"></circle>';
-    labels += '<text x="' + px + '" y="' + (H - 7) + '" text-anchor="middle" class="ax">' +
-              MON[parseInt(keys[i].slice(5, 7), 10) - 1] + '</text>';
+    if (i % step === 0 || i === n - 1) {
+      labels += '<text x="' + px + '" y="' + (H - 7) + '" text-anchor="middle" class="ax">' + label(keys[i]) + '</text>';
+    }
   }
   var lines = '';
   if (n >= 2) {
@@ -188,7 +194,7 @@ function render() {
   n.className = 'amt ' + (net >= 0 ? 'in' : 'out');
   document.getElementById('outcats').innerHTML = spendingPie(r.outCats);
   document.getElementById('incats').innerHTML = catRows(r.inCats, 'in');
-  document.getElementById('trend').innerHTML = trendLines(r.months);
+  document.getElementById('trend').innerHTML = trendLines(r.buckets, r.byDay);
   document.getElementById('start').value = curStart;
   document.getElementById('end').value = curEnd;
 }
