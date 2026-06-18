@@ -1,19 +1,22 @@
 'use strict';
 
-// One-time-paste bootstrap. Reads manifest.json from the repo, then pulls every
-// listed file into Scriptable's folder. Because the file list lives in the repo,
-// you never need to re-paste this Sync script again when new scripts are added.
-// Only CODE is fetched; transaction DATA never leaves the phone.
-const RAW_BASE = 'https://raw.githubusercontent.com/Anhle65/ExpenditureTracking/main';
+// One-time-paste bootstrap. Resolves the latest commit SHA on main, then pulls
+// every file in manifest.json from the IMMUTABLE by-SHA raw URLs. Branch URLs
+// (.../main/...) are CDN-cached and can serve stale code for minutes after a
+// push; by-SHA URLs are never stale. Only CODE is fetched; DATA stays on-device.
+const REPO = 'Anhle65/ExpenditureTracking';
 
 const fm = FileManager.iCloud();
 const dir = fm.documentsDirectory();
 
+// Latest commit SHA on main (the API is authoritative and not raw-CDN cached).
+const shaReq = new Request(`https://api.github.com/repos/${REPO}/commits/main`);
+shaReq.headers = { Accept: 'application/vnd.github.sha' };
+const sha = (await shaReq.loadString()).trim();
+const RAW_BASE = `https://raw.githubusercontent.com/${REPO}/${sha}`;
+
 async function fetchText(repoPath) {
-  // ?v=timestamp busts GitHub's CDN cache so we always get the latest push.
-  const req = new Request(`${RAW_BASE}/${repoPath}?v=${Date.now()}`);
-  req.headers = { 'Cache-Control': 'no-cache' };
-  return req.loadString();
+  return new Request(`${RAW_BASE}/${repoPath}`).loadString();
 }
 
 const manifest = JSON.parse(await fetchText('manifest.json'));
@@ -26,6 +29,6 @@ for (const repoPath of manifest) {
 
 const a = new Alert();
 a.title = 'Sync complete';
-a.message = `Pulled ${manifest.length} files.`;
+a.message = `Pulled ${manifest.length} files at ${sha.slice(0, 7)}.`;
 a.addAction('OK');
 await a.present();
