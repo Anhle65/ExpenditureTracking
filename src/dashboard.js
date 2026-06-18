@@ -10,6 +10,9 @@
 const storeFile = importModule('storeFile');
 const { DEFAULT_ACCOUNTS } = importModule('categories');
 
+const settings = storeFile.loadSettings();
+const initialTheme = settings.theme === 'light' ? 'light' : 'dark';
+
 const txns = storeFile.loadTransactions();
 const slim = txns.map(t => ({
   d: String(t.date),
@@ -50,6 +53,18 @@ const PRESETS = [
 // literal; only the injected data uses ${...} via the replaces below.
 const pageJs = `
 var TX = __TX__, PRESETS = __PRESETS__, ACCOUNTS = __ACCOUNTS__;
+// Theme: window.__theme is read back by Scriptable after the view closes and
+// saved to settings.json, so the choice persists across opens.
+window.__theme = __THEME__;
+function applyTheme() {
+  document.documentElement.setAttribute('data-theme', window.__theme);
+  var btn = document.getElementById('theme');
+  if (btn) btn.textContent = window.__theme === 'light' ? '☾' : '☀';  // ☾ to go dark / ☀ to go light
+}
+function toggleTheme() {
+  window.__theme = window.__theme === 'light' ? 'dark' : 'light';
+  applyTheme();
+}
 var curStart = PRESETS[0].start, curEnd = PRESETS[0].end;
 var curAccount = ACCOUNTS.indexOf('Spending') >= 0 ? 'Spending' : (ACCOUNTS[0] || 'All');
 // High-contrast qualitative palette, ordered so consecutive slices differ strongly.
@@ -114,7 +129,7 @@ function spendingPie(map) {
     }
   }
   // The donut centre is the display: TOTAL by default; tap the hole to reset.
-  var hole = '<circle cx="' + cx + '" cy="' + cy + '" r="' + ri + '" fill="#111" data-cat="TOTAL" data-amt="$' +
+  var hole = '<circle cx="' + cx + '" cy="' + cy + '" r="' + ri + '" class="pc-hole" data-cat="TOTAL" data-amt="$' +
              total.toFixed(2) + '" onclick="setCenter(this)"></circle>';
   var svg = '<svg viewBox="0 0 120 120" class="pie">' + slices + plabels + hole +
             '<text id="pc-label" x="60" y="56" class="pc-t" text-anchor="middle" pointer-events="none">TOTAL</text>' +
@@ -243,62 +258,87 @@ function onDate() {
     bar.appendChild(p);
   }
   highlight('tabs', 0);
+  applyTheme();
   render();
 })();
 `.replace('__TX__', JSON.stringify(slim))
  .replace('__PRESETS__', JSON.stringify(PRESETS))
- .replace('__ACCOUNTS__', JSON.stringify(ACCOUNTS));
+ .replace('__ACCOUNTS__', JSON.stringify(ACCOUNTS))
+ .replace('__THEME__', JSON.stringify(initialTheme));
 
 const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
+  /* Colour tokens. :root is the dark theme (default); [data-theme="light"]
+     overrides them. The toggle button flips html[data-theme]; everything below
+     reads var()s, so the whole page re-themes from these two blocks. The 12
+     category palette colours (in JS) are deliberately NOT themed — they read
+     on both backgrounds. */
+  :root{
+    --bg:#111; --surface:#222; --surface2:#1a1a1a; --track:#1d1d1d; --border:#333;
+    --text:#eee; --text2:#ccc; --text3:#ddd;
+    --muted:#888; --muted2:#9a9a9a; --muted3:#777; --legend:#bbb;
+    --accent:#9af; --accent-fg:#013; --tab-bg:#5a8; --tab-fg:#031;
+    --out:#f87; --in:#7f7;
+  }
+  [data-theme="light"]{
+    --bg:#f7f7f8; --surface:#ececef; --surface2:#fff; --track:#e3e3e6; --border:#d0d0d5;
+    --text:#1a1a1a; --text2:#444; --text3:#333;
+    --muted:#777; --muted2:#666; --muted3:#888; --legend:#555;
+    --accent:#2563eb; --accent-fg:#fff; --tab-bg:#2f8f6b; --tab-fg:#fff;
+    --out:#c0392b; --in:#15803d;
+  }
   *{box-sizing:border-box}
   html,body{overflow-x:hidden}
-  body{font:16px -apple-system;margin:0;padding:14px;background:#111;color:#eee}
-  h2{font-size:14px;color:#9af;margin:20px 0 8px}
+  body{font:16px -apple-system;margin:0;padding:14px;background:var(--bg);color:var(--text)}
+  h2{font-size:14px;color:var(--accent);margin:20px 0 8px}
+  .topbar{display:flex;justify-content:flex-end;margin-bottom:6px}
+  .tbtn{font-size:16px;line-height:1;padding:6px 10px;border-radius:14px;border:none;background:var(--surface);color:var(--text);cursor:pointer}
   .tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
-  .tab{font:12px -apple-system;padding:6px 11px;border-radius:14px;border:none;background:#222;color:#ccc}
-  .tab.active{background:#5a8;color:#031;font-weight:600}
-  .accts .tab.active{background:#9af;color:#013}
+  .tab{font:12px -apple-system;padding:6px 11px;border-radius:14px;border:none;background:var(--surface);color:var(--text2)}
+  .tab.active{background:var(--tab-bg);color:var(--tab-fg);font-weight:600}
+  .accts .tab.active{background:var(--accent);color:var(--accent-fg)}
   .dates{display:flex;gap:8px;align-items:center;margin:6px 0 12px}
-  .dates .arrow{color:#888;flex:0 0 auto}
-  input[type=date]{flex:1;min-width:0;background:#222;color:#eee;border:1px solid #333;border-radius:6px;padding:6px 7px;font:13px -apple-system}
+  .dates .arrow{color:var(--muted);flex:0 0 auto}
+  input[type=date]{flex:1;min-width:0;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 7px;font:13px -apple-system}
   /* Out / In / Net header — three equal, aligned cells, font scales to width */
   .summary{display:flex;gap:8px;margin:4px 0 6px}
-  .cell{flex:1;min-width:0;background:#1a1a1a;border-radius:10px;padding:10px 6px;text-align:center}
-  .cap{font-size:11px;color:#9a9a9a;text-transform:uppercase;letter-spacing:.04em}
+  .cell{flex:1;min-width:0;background:var(--surface2);border-radius:10px;padding:10px 6px;text-align:center}
+  .cap{font-size:11px;color:var(--muted2);text-transform:uppercase;letter-spacing:.04em}
   .amt{font-weight:700;font-variant-numeric:tabular-nums;margin-top:4px;white-space:nowrap;font-size:clamp(14px,4.4vw,20px)}
-  .out{color:#f87} .in{color:#7f7}
+  .out{color:var(--out)} .in{color:var(--in)}
   /* category bars: fixed-share label (ellipsis) + flexible track + right amount */
   .row{display:flex;align-items:center;gap:8px;margin:6px 0}
-  .lbl{flex:0 0 34%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:#ccc}
-  .track{flex:1;min-width:0;height:14px;background:#1d1d1d;border-radius:3px;overflow:hidden}
+  .lbl{flex:0 0 34%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:var(--text2)}
+  .track{flex:1;min-width:0;height:14px;background:var(--track);border-radius:3px;overflow:hidden}
   .bar{display:block;height:100%;border-radius:3px}
-  .bar.out{background:#f87} .bar.in{background:#7f7}
-  .val{flex:0 0 auto;font-size:13px;font-variant-numeric:tabular-nums;color:#ddd}
-  .empty{color:#888;font-size:13px;margin:4px 0}
+  .bar.out{background:var(--out)} .bar.in{background:var(--in)}
+  .val{flex:0 0 auto;font-size:13px;font-variant-numeric:tabular-nums;color:var(--text3)}
+  .empty{color:var(--muted);font-size:13px;margin:4px 0}
   /* spending donut + legend: pie beside legend on wide, stacks on narrow */
   /* pie stretches to fill the left; legend (name + %) sits to its right */
   .pie-wrap{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:4px}
   .pie-box{flex:1 1 150px;min-width:130px;max-width:230px}
   .pie{width:100%;height:auto;display:block}
   .pie path,.pie circle{cursor:pointer}
-  .hint{color:#777;font-size:11px;margin:8px 0 0}
-  .pc-t{fill:#9a9a9a;font-size:9px;text-transform:uppercase}
-  .pc-v{fill:#eee;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
+  .pc-hole{fill:var(--bg)}
+  .hint{color:var(--muted3);font-size:11px;margin:8px 0 0}
+  .pc-t{fill:var(--muted2);font-size:9px;text-transform:uppercase}
+  .pc-v{fill:var(--text);font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
   .slice-pct{fill:#fff;font-size:7px;font-weight:700;paint-order:stroke;stroke:rgba(0,0,0,.5);stroke-width:1.6px}
   .legend{flex:0 1 auto;min-width:0}
   .lrow{display:flex;align-items:center;gap:7px;margin:6px 0;cursor:pointer}
   .sw{flex:0 0 auto;width:11px;height:11px;border-radius:2px}
-  .lname{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:#ccc}
-  .lpct{flex:0 0 auto;width:32px;text-align:right;font-size:12px;color:#9a9a9a;font-variant-numeric:tabular-nums}
+  .lname{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:var(--text2)}
+  .lpct{flex:0 0 auto;width:32px;text-align:right;font-size:12px;color:var(--muted2);font-variant-numeric:tabular-nums}
   /* trend: SVG line chart (out red, in green) + small legend */
-  .tlegend{display:flex;gap:14px;font-size:12px;color:#bbb;margin:2px 0 2px}
+  .tlegend{display:flex;gap:14px;font-size:12px;color:var(--legend);margin:2px 0 2px}
   .tk{display:flex;align-items:center;gap:5px}
   .dot{width:9px;height:9px;border-radius:50%;display:inline-block}
   .dot.out{background:#ef4444} .dot.in{background:#22c55e}
   .linechart{width:100%;height:auto;display:block;margin-top:2px}
-  .ax{fill:#888;font-size:8px}
+  .ax{fill:var(--muted);font-size:8px}
 </style></head><body>
+  <div class="topbar"><button class="tbtn" id="theme" onclick="toggleTheme()" aria-label="Toggle theme">☀</button></div>
   <div class="tabs accts" id="accts"></div>
   <div class="tabs" id="tabs"></div>
   <div class="dates">
@@ -320,3 +360,13 @@ const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=de
 const wv = new WebView();
 await wv.loadHTML(html);
 await wv.present(true);
+
+// The WebView object outlives the presentation, so read the theme the user
+// left it on and persist it only if it changed (avoids a needless iCloud write).
+try {
+  const chosen = await wv.evaluateJavaScript('window.__theme');
+  if ((chosen === 'light' || chosen === 'dark') && chosen !== initialTheme) {
+    settings.theme = chosen;
+    storeFile.saveSettings(settings);
+  }
+} catch (e) { /* view gone — keep the existing setting */ }
