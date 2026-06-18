@@ -4,6 +4,9 @@
 // date-range controls live INSIDE the report. Transactions are embedded and all
 // filtering/aggregation runs in-page, so tapping recomputes instantly. Data
 // stays on the device — it is only rendered in the local WebView.
+// Shows BOTH flows: Out / In / Net header, spending-by-category, income-by-
+// category, and an out-vs-in monthly trend. Layout is responsive (fits iPhone SE
+// → Pro Max), amounts never clip, columns align (see CLAUDE.md UI rules).
 const storeFile = importModule('storeFile');
 const { DEFAULT_ACCOUNTS } = importModule('categories');
 
@@ -51,43 +54,62 @@ var curStart = PRESETS[0].start, curEnd = PRESETS[0].end;
 var curAccount = ACCOUNTS.indexOf('Spending') >= 0 ? 'Spending' : (ACCOUNTS[0] || 'All');
 
 function compute() {
-  var out = 0, inc = 0, cats = {}, months = {};
+  var out = 0, inc = 0, outCats = {}, inCats = {}, months = {};
   for (var i = 0; i < TX.length; i++) {
     var t = TX[i];
     if (curAccount !== 'All' && t.acct !== curAccount) continue;
     if (t.d < curStart || t.d > curEnd) continue;
-    if (t.dir === 'out') {
-      out += t.a;
-      cats[t.c] = (cats[t.c] || 0) + t.a;
-      var ym = t.d.slice(0, 7);
-      months[ym] = (months[ym] || 0) + t.a;
-    } else { inc += t.a; }
+    var ym = t.d.slice(0, 7);
+    if (!months[ym]) months[ym] = { out: 0, inc: 0 };
+    if (t.dir === 'out') { out += t.a; outCats[t.c] = (outCats[t.c] || 0) + t.a; months[ym].out += t.a; }
+    else { inc += t.a; inCats[t.c] = (inCats[t.c] || 0) + t.a; months[ym].inc += t.a; }
   }
-  return { out: out, inc: inc, cats: cats, months: months };
+  return { out: out, inc: inc, outCats: outCats, inCats: inCats, months: months };
 }
-function rows(map, sortByValue) {
-  var keys = Object.keys(map);
-  keys.sort(sortByValue ? function (a, b) { return map[b] - map[a]; } : undefined);
+
+function catRows(map, cls) {
+  var keys = Object.keys(map).sort(function (a, b) { return map[b] - map[a]; });
   var max = 1, i;
   for (i = 0; i < keys.length; i++) if (map[keys[i]] > max) max = map[keys[i]];
   var h = '';
   for (i = 0; i < keys.length; i++) {
     var k = keys[i], v = map[k];
     h += '<div class="row"><span class="lbl">' + k + '</span>' +
-         '<span class="bar" style="width:' + (v / max * 100).toFixed(1) + '%"></span>' +
+         '<span class="track"><span class="bar ' + cls + '" style="width:' + (v / max * 100).toFixed(1) + '%"></span></span>' +
          '<span class="val">$' + v.toFixed(2) + '</span></div>';
   }
   return h || '<p class="empty">None in range.</p>';
 }
+
+function trendRows(months) {
+  var keys = Object.keys(months).sort();
+  if (!keys.length) return '<p class="empty">None in range.</p>';
+  var max = 1, i;
+  for (i = 0; i < keys.length; i++) {
+    if (months[keys[i]].out > max) max = months[keys[i]].out;
+    if (months[keys[i]].inc > max) max = months[keys[i]].inc;
+  }
+  var h = '';
+  for (i = 0; i < keys.length; i++) {
+    var k = keys[i], o = months[k].out, n = months[k].inc;
+    h += '<div class="trow"><div class="tmonth">' + k + '</div><div class="tbars">' +
+         '<div class="tline"><span class="ttrack"><span class="tb out" style="width:' + (o / max * 100).toFixed(1) + '%"></span></span><span class="tval out">-$' + o.toFixed(2) + '</span></div>' +
+         '<div class="tline"><span class="ttrack"><span class="tb in" style="width:' + (n / max * 100).toFixed(1) + '%"></span></span><span class="tval in">+$' + n.toFixed(2) + '</span></div>' +
+         '</div></div>';
+  }
+  return h;
+}
+
 function render() {
   var r = compute(), net = r.inc - r.out;
   document.getElementById('out').textContent = '-$' + r.out.toFixed(2);
   document.getElementById('in').textContent = '+$' + r.inc.toFixed(2);
   var n = document.getElementById('net');
-  n.textContent = 'Net: ' + (net >= 0 ? '+' : '-') + '$' + Math.abs(net).toFixed(2);
-  n.className = net >= 0 ? 'net in' : 'net out';
-  document.getElementById('cats').innerHTML = rows(r.cats, true);
-  document.getElementById('trend').innerHTML = rows(r.months, false);
+  n.textContent = (net >= 0 ? '+' : '-') + '$' + Math.abs(net).toFixed(2);
+  n.className = 'amt ' + (net >= 0 ? 'in' : 'out');
+  document.getElementById('outcats').innerHTML = catRows(r.outCats, 'out');
+  document.getElementById('incats').innerHTML = catRows(r.inCats, 'in');
+  document.getElementById('trend').innerHTML = trendRows(r.months);
   document.getElementById('start').value = curStart;
   document.getElementById('end').value = curEnd;
 }
@@ -133,33 +155,57 @@ function onDate() {
 
 const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  body{font:16px -apple-system;margin:0;padding:16px;background:#111;color:#eee}
-  h2{font-size:15px;color:#9af;margin:22px 0 6px}
+  *{box-sizing:border-box}
+  html,body{overflow-x:hidden}
+  body{font:16px -apple-system;margin:0;padding:14px;background:#111;color:#eee}
+  h2{font-size:14px;color:#9af;margin:20px 0 8px}
   .tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
   .tab{font:12px -apple-system;padding:6px 11px;border-radius:14px;border:none;background:#222;color:#ccc}
   .tab.active{background:#5a8;color:#031;font-weight:600}
   .accts .tab.active{background:#9af;color:#013}
-  .dates{display:flex;gap:8px;align-items:center;margin:6px 0 14px}
-  input[type=date]{background:#222;color:#eee;border:1px solid #333;border-radius:6px;padding:5px 7px;font:13px -apple-system}
-  .tot{font-size:26px;font-weight:700} .out{color:#f87} .in{color:#7f7}
-  .net{font-size:14px;color:#bbb;margin-top:4px}
+  .dates{display:flex;gap:8px;align-items:center;margin:6px 0 12px}
+  .dates .arrow{color:#888;flex:0 0 auto}
+  input[type=date]{flex:1;min-width:0;background:#222;color:#eee;border:1px solid #333;border-radius:6px;padding:6px 7px;font:13px -apple-system}
+  /* Out / In / Net header — three equal, aligned cells, font scales to width */
+  .summary{display:flex;gap:8px;margin:4px 0 6px}
+  .cell{flex:1;min-width:0;background:#1a1a1a;border-radius:10px;padding:10px 6px;text-align:center}
+  .cap{font-size:11px;color:#9a9a9a;text-transform:uppercase;letter-spacing:.04em}
+  .amt{font-weight:700;font-variant-numeric:tabular-nums;margin-top:4px;white-space:nowrap;font-size:clamp(14px,4.4vw,20px)}
+  .out{color:#f87} .in{color:#7f7}
+  /* category bars: fixed-share label (ellipsis) + flexible track + right amount */
   .row{display:flex;align-items:center;gap:8px;margin:6px 0}
-  .lbl{width:120px;font-size:13px;color:#bbb;overflow:hidden;white-space:nowrap}
-  .bar{height:14px;background:#5a8;border-radius:3px;min-width:2px}
-  .val{margin-left:auto;font-variant-numeric:tabular-nums}
-  .empty{color:#888}
+  .lbl{flex:0 0 34%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:#ccc}
+  .track{flex:1;min-width:0;height:14px;background:#1d1d1d;border-radius:3px;overflow:hidden}
+  .bar{display:block;height:100%;border-radius:3px}
+  .bar.out{background:#f87} .bar.in{background:#7f7}
+  .val{flex:0 0 auto;font-size:13px;font-variant-numeric:tabular-nums;color:#ddd}
+  .empty{color:#888;font-size:13px;margin:4px 0}
+  /* trend: month label + stacked out/in bars */
+  .trow{display:flex;align-items:center;gap:8px;margin:9px 0}
+  .tmonth{flex:0 0 58px;font-size:12px;color:#bbb}
+  .tbars{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+  .tline{display:flex;align-items:center;gap:6px}
+  .ttrack{flex:1;min-width:0;height:10px;background:#1d1d1d;border-radius:2px;overflow:hidden}
+  .tb{display:block;height:100%}
+  .tb.out{background:#f87} .tb.in{background:#7f7}
+  .tval{flex:0 0 auto;font-size:11px;font-variant-numeric:tabular-nums}
+  .tval.out{color:#f87} .tval.in{color:#7f7}
 </style></head><body>
   <div class="tabs accts" id="accts"></div>
   <div class="tabs" id="tabs"></div>
   <div class="dates">
     <input type="date" id="start" onchange="onDate()">
-    <span>→</span>
+    <span class="arrow">→</span>
     <input type="date" id="end" onchange="onDate()">
   </div>
-  <div class="tot"><span class="out" id="out">-$0.00</span>&nbsp;·&nbsp;<span class="in" id="in">+$0.00</span></div>
-  <div class="net" id="net">Net: $0.00</div>
-  <h2>By category (spending)</h2><div id="cats"></div>
-  <h2>Trend (monthly out)</h2><div id="trend"></div>
+  <div class="summary">
+    <div class="cell"><div class="cap">Out</div><div class="amt out" id="out">-$0.00</div></div>
+    <div class="cell"><div class="cap">In</div><div class="amt in" id="in">+$0.00</div></div>
+    <div class="cell"><div class="cap">Net</div><div class="amt" id="net">$0.00</div></div>
+  </div>
+  <h2>Spending by category</h2><div id="outcats"></div>
+  <h2>Income by category</h2><div id="incats"></div>
+  <h2>Trend (out vs in)</h2><div id="trend"></div>
   <script>${pageJs}</script>
 </body></html>`;
 
