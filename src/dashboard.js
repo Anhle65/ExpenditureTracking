@@ -266,18 +266,18 @@ const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=de
   .val{flex:0 0 auto;font-size:13px;font-variant-numeric:tabular-nums;color:#ddd}
   .empty{color:#888;font-size:13px;margin:4px 0}
   /* spending donut + legend: pie beside legend on wide, stacks on narrow */
-  .pie-wrap{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:4px}
-  .pie{width:128px;height:128px;flex:0 0 auto}
+  /* bigger pie; legend hugs its content so the % sits right next to the name */
+  .pie-wrap{display:flex;flex-wrap:wrap;gap:18px;align-items:center;margin-top:4px}
+  .pie{width:150px;height:150px;flex:0 0 auto}
   .pie path,.pie circle{cursor:pointer}
   .hint{color:#777;font-size:11px;margin:8px 0 0}
   .pc-t{fill:#9a9a9a;font-size:9px;text-transform:uppercase}
   .pc-v{fill:#eee;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
-  .legend{flex:1;min-width:150px}
-  .lrow{display:flex;align-items:center;gap:8px;margin:5px 0;cursor:pointer}
+  .legend{flex:0 0 auto}
+  .lrow{display:flex;align-items:center;gap:8px;margin:6px 0;cursor:pointer}
   .sw{flex:0 0 auto;width:11px;height:11px;border-radius:2px}
-  .lname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:#ccc}
-  .lval{flex:0 0 auto;font-size:13px;font-variant-numeric:tabular-nums;color:#ddd}
-  .lpct{flex:0 0 auto;width:40px;text-align:right;font-size:12px;color:#999;font-variant-numeric:tabular-nums}
+  .lname{flex:0 0 88px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:#ccc}
+  .lpct{flex:0 0 auto;width:34px;text-align:right;font-size:12px;color:#9a9a9a;font-variant-numeric:tabular-nums}
   /* trend: SVG line chart (out red, in green) + small legend */
   .tlegend{display:flex;gap:14px;font-size:12px;color:#bbb;margin:2px 0 2px}
   .tk{display:flex;align-items:center;gap:5px}
