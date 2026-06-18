@@ -324,7 +324,9 @@ const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=de
   .hint{color:var(--muted3);font-size:11px;margin:8px 0 0}
   .pc-t{fill:var(--muted2);font-size:9px;text-transform:uppercase}
   .pc-v{fill:var(--text);font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
-  .slice-pct{fill:#fff;font-size:7px;font-weight:700;paint-order:stroke;stroke:rgba(0,0,0,.85);stroke-width:2.2px}
+  .slice-pct{fill:#fff;font-size:7px;font-weight:700;paint-order:stroke;stroke:rgba(0,0,0,.5);stroke-width:1.6px}
+  /* light slices are paler, so the white %s need a stronger dark halo to read */
+  [data-theme="light"] .slice-pct{stroke:rgba(0,0,0,.85);stroke-width:2.2px}
   .legend{flex:0 1 auto;min-width:0}
   .lrow{display:flex;align-items:center;gap:7px;margin:6px 0;cursor:pointer}
   .sw{flex:0 0 auto;width:11px;height:11px;border-radius:2px}
