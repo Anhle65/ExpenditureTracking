@@ -52,6 +52,7 @@ const pageJs = `
 var TX = __TX__, PRESETS = __PRESETS__, ACCOUNTS = __ACCOUNTS__;
 var curStart = PRESETS[0].start, curEnd = PRESETS[0].end;
 var curAccount = ACCOUNTS.indexOf('Spending') >= 0 ? 'Spending' : (ACCOUNTS[0] || 'All');
+var PALETTE = ['#f87171','#fbbf24','#34d399','#60a5fa','#a78bfa','#f472b6','#fb923c','#22d3ee','#a3e635','#e879f9','#94a3b8'];
 
 function compute() {
   var out = 0, inc = 0, outCats = {}, inCats = {}, months = {};
@@ -81,6 +82,36 @@ function catRows(map, cls) {
   return h || '<p class="empty">None in range.</p>';
 }
 
+// Spending donut (inline SVG) + legend. Donut shows proportions at a glance;
+// the legend gives category, amount, and % for readable detail.
+function spendingPie(map) {
+  var keys = Object.keys(map).sort(function (a, b) { return map[b] - map[a]; });
+  if (!keys.length) return '<p class="empty">No spending in range.</p>';
+  var total = 0, i;
+  for (i = 0; i < keys.length; i++) total += map[keys[i]];
+  var r = 42, C = 2 * Math.PI * r, start = 0, segs = '';
+  for (i = 0; i < keys.length; i++) {
+    var len = (map[keys[i]] / total) * C, color = PALETTE[i % PALETTE.length];
+    segs += '<circle cx="60" cy="60" r="' + r + '" fill="none" stroke="' + color + '" stroke-width="18" ' +
+            'stroke-dasharray="' + len.toFixed(2) + ' ' + (C - len).toFixed(2) + '" ' +
+            'stroke-dashoffset="' + (-start).toFixed(2) + '"></circle>';
+    start += len;
+  }
+  var svg = '<svg viewBox="0 0 120 120" class="pie"><g transform="rotate(-90 60 60)">' + segs + '</g>' +
+            '<text x="60" y="57" class="pc-t" text-anchor="middle">Total</text>' +
+            '<text x="60" y="72" class="pc-v" text-anchor="middle">$' + total.toFixed(2) + '</text></svg>';
+  var legend = '<div class="legend">';
+  for (i = 0; i < keys.length; i++) {
+    var v = map[keys[i]];
+    legend += '<div class="lrow"><span class="sw" style="background:' + PALETTE[i % PALETTE.length] + '"></span>' +
+              '<span class="lname">' + keys[i] + '</span>' +
+              '<span class="lval">$' + v.toFixed(2) + '</span>' +
+              '<span class="lpct">' + (v / total * 100).toFixed(0) + '%</span></div>';
+  }
+  legend += '</div>';
+  return '<div class="pie-wrap">' + svg + legend + '</div>';
+}
+
 function trendRows(months) {
   var keys = Object.keys(months).sort();
   if (!keys.length) return '<p class="empty">None in range.</p>';
@@ -107,7 +138,7 @@ function render() {
   var n = document.getElementById('net');
   n.textContent = (net >= 0 ? '+' : '-') + '$' + Math.abs(net).toFixed(2);
   n.className = 'amt ' + (net >= 0 ? 'in' : 'out');
-  document.getElementById('outcats').innerHTML = catRows(r.outCats, 'out');
+  document.getElementById('outcats').innerHTML = spendingPie(r.outCats);
   document.getElementById('incats').innerHTML = catRows(r.inCats, 'in');
   document.getElementById('trend').innerHTML = trendRows(r.months);
   document.getElementById('start').value = curStart;
@@ -180,6 +211,17 @@ const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=de
   .bar.out{background:#f87} .bar.in{background:#7f7}
   .val{flex:0 0 auto;font-size:13px;font-variant-numeric:tabular-nums;color:#ddd}
   .empty{color:#888;font-size:13px;margin:4px 0}
+  /* spending donut + legend: pie beside legend on wide, stacks on narrow */
+  .pie-wrap{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:4px}
+  .pie{width:128px;height:128px;flex:0 0 auto}
+  .pc-t{fill:#9a9a9a;font-size:9px;text-transform:uppercase}
+  .pc-v{fill:#eee;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
+  .legend{flex:1;min-width:150px}
+  .lrow{display:flex;align-items:center;gap:8px;margin:5px 0}
+  .sw{flex:0 0 auto;width:11px;height:11px;border-radius:2px}
+  .lname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:#ccc}
+  .lval{flex:0 0 auto;font-size:13px;font-variant-numeric:tabular-nums;color:#ddd}
+  .lpct{flex:0 0 auto;width:40px;text-align:right;font-size:12px;color:#999;font-variant-numeric:tabular-nums}
   /* trend: month label + stacked out/in bars */
   .trow{display:flex;align-items:center;gap:8px;margin:9px 0}
   .tmonth{flex:0 0 58px;font-size:12px;color:#bbb}
