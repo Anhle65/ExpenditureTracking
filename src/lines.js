@@ -4,7 +4,7 @@ const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV
 const NOISE_WORDS = new Set(['accounts','payments','transfer','cards','apply','go',
                              'pay','details','more']);
 
-function isNoise(line) {
+function isNoise(line, extraNoiseWords) {
   const t = String(line).trim();
   if (t === '') return true;
   if (/^\d{1,2}:\d{2}$/.test(t)) return true;        // time, e.g. 21:33
@@ -12,6 +12,7 @@ function isNoise(line) {
   if (/degrees/i.test(t)) return true;                // app title bar (2degrees; OCR may mangle to "Il degrees")
   if (t.includes('<')) return true;                   // nav chrome, e.g. < Accounts
   if (NOISE_WORDS.has(t.toLowerCase())) return true;  // bottom nav words
+  if (Array.isArray(extraNoiseWords) && extraNoiseWords.indexOf(t.toLowerCase()) !== -1) return true;
   if (/^\$[\d,]+\.\d{2}$/.test(t)) return true;       // unsigned amount = balance, ignore
   if (!/[a-z0-9]/i.test(t)) return true;              // symbols only, e.g. $→
   return false;
