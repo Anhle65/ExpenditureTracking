@@ -1,11 +1,10 @@
 # Claude Code Guidelines
 
-## CRITICAL - GIT BRANCH RULES
+## GIT WORKFLOW
 
-**NEVER push to `main` without explicit user permission.**
-
-- Work on feature branches; confirm the target branch is not `main` before any push.
-- Commit or push only when the user asks.
+**Single-user repo — work directly on `main` and push.** Do NOT create feature
+branches. Commit and push as each change completes (the user has given standing
+permission to commit and push to `main`).
 
 ## HIGH PRIORITY - SIMPLICITY FIRST (YAGNI)
 
