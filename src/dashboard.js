@@ -98,30 +98,34 @@ function spendingPie(map) {
     var v = map[keys[i]], color = PALETTE[i % PALETTE.length], amt = '$' + v.toFixed(2);
     if (keys.length === 1) {
       slices += '<circle cx="' + cx + '" cy="' + cy + '" r="' + ro + '" fill="' + color +
-                '" data-cat="' + keys[i] + '" data-amt="' + amt + '" onclick="showTip(event,this)"></circle>';
+                '" data-cat="' + keys[i] + '" data-amt="' + amt + '" onclick="setCenter(this)"></circle>';
     } else {
       var a1 = a0 + (v / total) * 2 * Math.PI;
       slices += '<path d="' + arc(cx, cy, ro, ri, a0, a1) + '" fill="' + color +
-                '" data-cat="' + keys[i] + '" data-amt="' + amt + '" onclick="showTip(event,this)"></path>';
+                '" data-cat="' + keys[i] + '" data-amt="' + amt + '" onclick="setCenter(this)"></path>';
       a0 = a1;
     }
   }
-  var hole = '<circle cx="' + cx + '" cy="' + cy + '" r="' + ri + '" fill="#111" data-cat="Total" data-amt="$' +
-             total.toFixed(2) + '" onclick="showTip(event,this)"></circle>';
+  // The donut centre is the display: TOTAL by default; tap the hole to reset.
+  var hole = '<circle cx="' + cx + '" cy="' + cy + '" r="' + ri + '" fill="#111" data-cat="TOTAL" data-amt="$' +
+             total.toFixed(2) + '" onclick="setCenter(this)"></circle>';
   var svg = '<svg viewBox="0 0 120 120" class="pie">' + slices + hole +
-            '<text x="60" y="63" class="pc-t" text-anchor="middle" pointer-events="none">Total</text></svg>';
+            '<text id="pc-label" x="60" y="56" class="pc-t" text-anchor="middle" pointer-events="none">TOTAL</text>' +
+            '<text id="pc-amount" x="60" y="70" class="pc-v" text-anchor="middle" pointer-events="none">$' + total.toFixed(2) + '</text></svg>';
 
   var legend = '<div class="legend">';
   for (i = 0; i < keys.length; i++) {
     var v2 = map[keys[i]];
-    legend += '<div class="lrow" data-cat="' + keys[i] + '" data-amt="$' + v2.toFixed(2) + '" onclick="showTip(event,this)">' +
+    legend += '<div class="lrow" data-cat="' + keys[i] + '" data-amt="$' + v2.toFixed(2) + '" onclick="setCenter(this)">' +
               '<span class="sw" style="background:' + PALETTE[i % PALETTE.length] + '"></span>' +
               '<span class="lname">' + keys[i] + '</span>' +
               '<span class="lpct">' + (v2 / total * 100).toFixed(0) + '%</span></div>';
   }
   legend += '</div>';
-  return '<div class="pie-wrap">' + svg + legend + '</div><p class="hint">Tap a slice or colour to see its amount</p>';
+  return '<div class="pie-wrap">' + svg + legend + '</div><p class="hint">Tap a colour to show that category in the centre · tap the centre for the total</p>';
 }
+
+function trunc(s, n) { s = String(s); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
 
 // Donut-segment path from angle a0 to a1 (radians), outer ro, inner ri.
 function arc(cx, cy, ro, ri, a0, a1) {
@@ -132,18 +136,11 @@ function arc(cx, cy, ro, ri, a0, a1) {
          ' L' + ei[0] + ',' + ei[1] + ' A' + ri + ',' + ri + ' 0 ' + large + ' 0 ' + si[0] + ',' + si[1] + ' Z';
 }
 
-// Tooltip: tap a slice/legend colour to show "Category  $amount" near the tap.
-function showTip(evt, el) {
-  evt.stopPropagation();
-  var t = document.getElementById('tip');
-  t.textContent = el.getAttribute('data-cat') + '   ' + el.getAttribute('data-amt');
-  t.style.left = evt.clientX + 'px';
-  t.style.top = evt.clientY + 'px';
-  t.style.display = 'block';
-}
-function hideTip() {
-  var t = document.getElementById('tip');
-  if (t) t.style.display = 'none';
+// Swap the donut centre to the tapped category's name + amount (tap the centre
+// hole, whose data-cat is "TOTAL", to reset to the total).
+function setCenter(el) {
+  document.getElementById('pc-label').textContent = trunc(el.getAttribute('data-cat'), 10);
+  document.getElementById('pc-amount').textContent = el.getAttribute('data-amt');
 }
 
 // Trend as an SVG line chart: an out line (red) and an in line (green) across
@@ -183,7 +180,6 @@ function trendLines(months) {
 }
 
 function render() {
-  hideTip();
   var r = compute(), net = r.inc - r.out;
   document.getElementById('out').textContent = '-$' + r.out.toFixed(2);
   document.getElementById('in').textContent = '+$' + r.inc.toFixed(2);
@@ -209,7 +205,6 @@ function onDate() {
   render();
 }
 (function () {
-  document.addEventListener('click', hideTip);   // tap anywhere else dismisses the tooltip
   var acctBar = document.getElementById('accts');
   var acctLabels = ACCOUNTS.concat(['All']);
   for (var i = 0; i < acctLabels.length; i++) {
@@ -269,9 +264,6 @@ const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=de
   .pie{width:128px;height:128px;flex:0 0 auto}
   .pie path,.pie circle{cursor:pointer}
   .hint{color:#777;font-size:11px;margin:8px 0 0}
-  .tip{position:fixed;display:none;z-index:20;background:#000;border:1px solid #555;border-radius:8px;
-       padding:6px 10px;font:13px -apple-system;color:#fff;font-variant-numeric:tabular-nums;
-       pointer-events:none;white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,.6);transform:translate(-50%,-130%)}
   .pc-t{fill:#9a9a9a;font-size:9px;text-transform:uppercase}
   .pc-v{fill:#eee;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
   .legend{flex:1;min-width:150px}
@@ -288,7 +280,6 @@ const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=de
   .linechart{width:100%;height:auto;display:block;margin-top:2px}
   .ax{fill:#888;font-size:8px}
 </style></head><body>
-  <div id="tip" class="tip"></div>
   <div class="tabs accts" id="accts"></div>
   <div class="tabs" id="tabs"></div>
   <div class="dates">
