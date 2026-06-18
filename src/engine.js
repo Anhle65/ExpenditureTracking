@@ -67,9 +67,34 @@ function parseWithProfile(text, profile, opts = {}) {
   return columnZip(tokens, opts);
 }
 
-// Placeholder until the next task implements it.
+// Bank 2: each row is description line(s) → (account number) → a signed amount
+// (transaction) or an unsigned balance (not a transaction). The description
+// buffer accumulates desc lines. An `account` line is skipped WITHOUT clearing
+// the buffer (it sits between description and amount). A `balance`, `noise`, or
+// `date` ends a row, so the buffer is reset (a balance row's description must not
+// attach to the next transaction). A signed `amount` emits a transaction.
 function rowStacked(tokens, opts) {
-  return { transactions: [], warnings: ['row-stacked not implemented'] };
+  const transactions = [];
+  const warnings = [];
+  let curDate = { iso: opts.fallbackDate || null, uncertain: true };
+  let buffer = [];
+
+  for (const tok of tokens) {
+    if (tok.type === 'date') { curDate = { iso: tok.date.iso, uncertain: tok.date.uncertain }; buffer = []; continue; }
+    if (tok.type === 'account') continue;                 // mid-row reference: keep the buffer
+    if (tok.type === 'balance' || tok.type === 'noise') { buffer = []; continue; } // ends a non-transaction row
+    if (tok.type === 'desc') { buffer.push(tok.text); continue; }
+    if (tok.type === 'amount') {
+      const merchant = buffer.join(' ').trim() || '(unknown)';
+      transactions.push({
+        date: curDate.iso, dateUncertain: curDate.uncertain,
+        merchant, amount: tok.amt.amount, direction: tok.amt.direction,
+        rawText: `${merchant} ${tok.raw}`,
+      });
+      buffer = [];
+    }
+  }
+  return { transactions, warnings };
 }
 
 module.exports = { parseWithProfile };
