@@ -172,43 +172,126 @@ function setCenter(el) {
   document.getElementById('pc-amount').textContent = el.getAttribute('data-amt');
 }
 
-// Trend as an SVG line chart: an out line (red) and an in line (green). When
-// byDay is true the x-axis is by date (day of month); otherwise by month.
+// State of the currently-rendered trend chart, read by the scrubber so a
+// tap-hold-drag can map a touch x back to a bucket. Reset each render.
+var TRENDSTATE = null;
+var TREND_HINT = 'Tap and drag the chart to read values';
+
+function money(v) { return '$' + v.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,'); }
+// Round a value up to a "nice" 1/2/5 * 10^k so the top gridline is a round number.
+function niceCeil(v) {
+  if (v <= 0) return 1;
+  var p = Math.pow(10, Math.floor(Math.log10(v))), n = v / p;
+  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * p;
+}
+function fmtY(v) {
+  if (v >= 1000) { var k = v / 1000; return '$' + (k % 1 === 0 ? k.toFixed(0) : k.toFixed(1)) + 'k'; }
+  return '$' + Math.round(v);
+}
+
+// Trend as an SVG line chart: an out line (red) and an in line (green) over a
+// value grid with a y-axis. When byDay is true the x-axis is by date (day of
+// month); otherwise by month. Tap-hold-drag scrubs (see wireScrub).
 function trendLines(buckets, byDay) {
   var keys = Object.keys(buckets).sort();
-  if (!keys.length) return '<p class="empty">None in range.</p>';
+  if (!keys.length) { TRENDSTATE = null; return '<p class="empty">None in range.</p>'; }
   var MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  var max = 1, i;
+  var rawMax = 1, i;
   for (i = 0; i < keys.length; i++) {
-    if (buckets[keys[i]].out > max) max = buckets[keys[i]].out;
-    if (buckets[keys[i]].inc > max) max = buckets[keys[i]].inc;
+    if (buckets[keys[i]].out > rawMax) rawMax = buckets[keys[i]].out;
+    if (buckets[keys[i]].inc > rawMax) rawMax = buckets[keys[i]].inc;
   }
-  var W = 320, H = 168, padL = 8, padR = 8, padT = 12, padB = 22;
+  var max = niceCeil(rawMax);
+  var W = 320, H = 172, padL = 34, padR = 8, padT = 10, padB = 22;
   var plotW = W - padL - padR, plotH = H - padT - padB, n = keys.length;
   function x(i) { return n === 1 ? padL + plotW / 2 : padL + i * (plotW / (n - 1)); }
   function y(v) { return padT + plotH * (1 - v / max); }
   function label(k) { return byDay ? String(parseInt(k.slice(8, 10), 10)) : MON[parseInt(k.slice(5, 7), 10) - 1]; }
+  function rlabel(k) {
+    return byDay ? parseInt(k.slice(8, 10), 10) + ' ' + MON[parseInt(k.slice(5, 7), 10) - 1]
+                 : MON[parseInt(k.slice(5, 7), 10) - 1] + ' ' + k.slice(0, 4);
+  }
   var step = Math.ceil(n / 8);   // at most ~8 x-axis labels so they don't crowd
 
+  // Horizontal grid + y-axis value labels (TICKS+1 lines from 0 to max).
+  var grid = '', yax = '', TICKS = 4, t;
+  for (t = 0; t <= TICKS; t++) {
+    var tv = max * t / TICKS, gy = y(tv).toFixed(1);
+    grid += '<line x1="' + padL + '" y1="' + gy + '" x2="' + (W - padR) + '" y2="' + gy + '" class="grid"></line>';
+    yax += '<text x="' + (padL - 5) + '" y="' + gy + '" text-anchor="end" dominant-baseline="middle" class="ax">' + fmtY(tv) + '</text>';
+  }
+
   var outPts = '', inPts = '', dots = '', labels = '';
+  var xs = [], outv = [], inv = [], outYs = [], inYs = [], rlabels = [];
   for (i = 0; i < keys.length; i++) {
     var o = buckets[keys[i]].out, m = buckets[keys[i]].inc, px = x(i).toFixed(1);
-    outPts += px + ',' + y(o).toFixed(1) + ' ';
-    inPts += px + ',' + y(m).toFixed(1) + ' ';
-    dots += '<circle cx="' + px + '" cy="' + y(o).toFixed(1) + '" r="2.6" fill="#ef4444"></circle>' +
-            '<circle cx="' + px + '" cy="' + y(m).toFixed(1) + '" r="2.6" fill="#22c55e"></circle>';
+    var oy = y(o).toFixed(1), my = y(m).toFixed(1);
+    outPts += px + ',' + oy + ' ';
+    inPts += px + ',' + my + ' ';
+    dots += '<circle cx="' + px + '" cy="' + oy + '" r="2.6" fill="#ef4444"></circle>' +
+            '<circle cx="' + px + '" cy="' + my + '" r="2.6" fill="#22c55e"></circle>';
     if (i % step === 0 || i === n - 1) {
       labels += '<text x="' + px + '" y="' + (H - 7) + '" text-anchor="middle" class="ax">' + label(keys[i]) + '</text>';
     }
+    xs.push(parseFloat(px)); outv.push(o); inv.push(m);
+    outYs.push(parseFloat(oy)); inYs.push(parseFloat(my)); rlabels.push(rlabel(keys[i]));
   }
   var lines = '';
   if (n >= 2) {
     lines = '<polyline points="' + outPts.trim() + '" fill="none" stroke="#ef4444" stroke-width="2"></polyline>' +
             '<polyline points="' + inPts.trim() + '" fill="none" stroke="#22c55e" stroke-width="2"></polyline>';
   }
+  // Scrub layer: transparent hit rect over the plot, a dashed guide line, and
+  // two highlight markers — all toggled by wireScrub on tap-hold-drag.
+  var scrub = '<rect class="scrub-hit" x="' + padL + '" y="' + padT + '" width="' + plotW + '" height="' + plotH + '" fill="transparent"></rect>' +
+              '<line id="scrub-line" class="scrub-line" y1="' + padT + '" y2="' + (padT + plotH) + '" style="display:none"></line>' +
+              '<circle id="scrub-out" class="mk-out" r="4" style="display:none"></circle>' +
+              '<circle id="scrub-in" class="mk-in" r="4" style="display:none"></circle>';
+
+  TRENDSTATE = { n: n, padL: padL, plotW: plotW, W: W, xs: xs, outv: outv, inv: inv, outYs: outYs, inYs: inYs, rlabels: rlabels };
+
   var legend = '<div class="tlegend"><span class="tk"><span class="dot out"></span>Out</span>' +
                '<span class="tk"><span class="dot in"></span>In</span></div>';
-  return legend + '<svg viewBox="0 0 ' + W + ' ' + H + '" class="linechart">' + lines + dots + labels + '</svg>';
+  var readout = '<div class="readout" id="trend-readout">' + TREND_HINT + '</div>';
+  return legend + readout +
+    '<svg viewBox="0 0 ' + W + ' ' + H + '" class="linechart">' + grid + yax + lines + dots + labels + scrub + '</svg>';
+}
+
+// Wire the tap-hold-drag scrubber on the freshly-rendered trend SVG. Maps the
+// touch x to the nearest bucket, draws the guide + markers, and writes the
+// bucket's date + out/in amounts into the readout line. Re-bound each render
+// (innerHTML is replaced), so the listeners can't outlive their SVG.
+function wireScrub() {
+  var svg = document.querySelector('#trend svg'), s = TRENDSTATE;
+  if (!svg || !s) return;
+  var line = document.getElementById('scrub-line');
+  var mkO = document.getElementById('scrub-out'), mkI = document.getElementById('scrub-in');
+  var ro = document.getElementById('trend-readout');
+  var dragging = false;
+  function at(clientX) {
+    var r = svg.getBoundingClientRect();
+    var vbX = (clientX - r.left) / r.width * s.W;
+    var i = s.n === 1 ? 0 : Math.round((vbX - s.padL) / (s.plotW / (s.n - 1)));
+    if (i < 0) i = 0;
+    if (i > s.n - 1) i = s.n - 1;
+    var px = s.xs[i];
+    line.setAttribute('x1', px); line.setAttribute('x2', px); line.style.display = '';
+    mkO.setAttribute('cx', px); mkO.setAttribute('cy', s.outYs[i]); mkO.style.display = '';
+    mkI.setAttribute('cx', px); mkI.setAttribute('cy', s.inYs[i]); mkI.style.display = '';
+    ro.innerHTML = '<span class="ro-d">' + s.rlabels[i] + '</span> · ' +
+                   '<span class="ro-out">Out -' + money(s.outv[i]) + '</span> · ' +
+                   '<span class="ro-in">In +' + money(s.inv[i]) + '</span>';
+  }
+  function stop() {
+    if (!dragging) return;
+    dragging = false;
+    line.style.display = 'none'; mkO.style.display = 'none'; mkI.style.display = 'none';
+    ro.textContent = TREND_HINT;
+  }
+  svg.addEventListener('pointerdown', function (e) { dragging = true; e.preventDefault(); at(e.clientX); try { svg.setPointerCapture(e.pointerId); } catch (_) {} });
+  svg.addEventListener('pointermove', function (e) { if (dragging) { e.preventDefault(); at(e.clientX); } });
+  svg.addEventListener('pointerup', stop);
+  svg.addEventListener('pointercancel', stop);
 }
 
 function render() {
@@ -221,6 +304,7 @@ function render() {
   document.getElementById('outcats').innerHTML = spendingPie(r.outCats);
   document.getElementById('incats').innerHTML = catRows(r.inCats, 'in');
   document.getElementById('trend').innerHTML = trendLines(r.buckets, r.byDay);
+  wireScrub();
   document.getElementById('start').value = curStart;
   document.getElementById('end').value = curEnd;
 }
@@ -278,14 +362,14 @@ const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=de
     --text:#eee; --text2:#ccc; --text3:#ddd;
     --muted:#888; --muted2:#9a9a9a; --muted3:#777; --legend:#bbb;
     --accent:#9af; --accent-fg:#013; --tab-bg:#5a8; --tab-fg:#031;
-    --out:#f87; --in:#7f7;
+    --out:#f87; --in:#7f7; --grid:rgba(255,255,255,.10);
   }
   [data-theme="light"]{
     --bg:#f7f7f8; --surface:#ececef; --track:#e3e3e6; --border:#d0d0d5;
     --text:#1a1a1a; --text2:#444; --text3:#333;
     --muted:#777; --muted2:#666; --muted3:#888; --legend:#555;
     --accent:#2563eb; --accent-fg:#fff; --tab-bg:#2f8f6b; --tab-fg:#fff;
-    --out:#c0392b; --in:#15803d;
+    --out:#c0392b; --in:#15803d; --grid:rgba(0,0,0,.12);
   }
   *{box-sizing:border-box}
   html,body{overflow-x:hidden}
@@ -341,8 +425,17 @@ const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=de
   .tk{display:flex;align-items:center;gap:5px}
   .dot{width:9px;height:9px;border-radius:50%;display:inline-block}
   .dot.out{background:#ef4444} .dot.in{background:#22c55e}
-  .linechart{width:100%;height:auto;display:block;margin-top:2px}
+  /* readout line above the chart: shows the scrubbed bucket's date + amounts */
+  .readout{font-size:12px;color:var(--text2);margin:2px 0 4px;min-height:16px;font-variant-numeric:tabular-nums}
+  .ro-d{color:var(--text);font-weight:600} .ro-out{color:var(--out)} .ro-in{color:var(--in)}
+  /* touch-action:none so a horizontal scrub drag isn't stolen by page scroll */
+  .linechart{width:100%;height:auto;display:block;margin-top:2px;touch-action:none}
   .ax{fill:var(--muted);font-size:8px}
+  .grid{stroke:var(--grid);stroke-width:1}
+  .scrub-hit{cursor:crosshair}
+  .scrub-line{stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3}
+  .mk-out{fill:#ef4444;stroke:var(--surface);stroke-width:1.5}
+  .mk-in{fill:#22c55e;stroke:var(--surface);stroke-width:1.5}
 </style></head><body>
   <div class="topbar"><button class="tbtn" id="theme" onclick="toggleTheme()" aria-label="Toggle theme">☀</button></div>
   <div class="tabs accts" id="accts"></div>
