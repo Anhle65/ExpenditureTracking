@@ -74,14 +74,21 @@ async function confirmDelete(t) {
 const table = new UITable();
 table.showSeparators = true;
 
+// Keep the title to one line so long merchants (esp. bank-2 rows) can't wrap and
+// bleed into the next transaction.
+function shorten(s, n) { s = String(s); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
+
 function render() {
   table.removeAllRows();
   for (const t of txns) {
     const row = new UITableRow();
+    row.height = 52;
     const sign = t.direction === 'out' ? '-' : '+';
-    row.addText(t.merchant, `${t.date} · ${t.category}`);
+    const title = row.addText(shorten(t.merchant, 28), `${t.date} · ${t.category}`);
+    title.widthWeight = 72;
     const amt = row.addText(`${sign}$${t.amount.toFixed(2)}`);
     amt.rightAligned();
+    amt.widthWeight = 28;
     row.onSelect = async () => {
       const action = await chooseAction(t);
       if (action === 'recategorize') {

@@ -71,13 +71,18 @@ function confirm(added, skipped, warnings) {
   const table = new UITable();
   table.showSeparators = true;
 
+  function shorten(s, n) { s = String(s); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
+
   function txnRow(t, flag, subtitle, prefix) {
     const r = new UITableRow();
+    r.height = 52;
     const sign = t.direction === 'out' ? '-' : '+';
-    r.addText(`${prefix || ''}${t.merchant}${flag || ''}`,
-              subtitle || `${t.date} · ${t.category}`);
+    const title = r.addText(`${prefix || ''}${shorten(t.merchant, 26)}${flag || ''}`,
+                            subtitle || `${t.date} · ${t.category}`);
+    title.widthWeight = 72;
     const amt = r.addText(`${sign}$${t.amount.toFixed(2)}`);
     amt.rightAligned();
+    amt.widthWeight = 28;
     return r;
   }
 
