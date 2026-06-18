@@ -206,12 +206,13 @@ function trendLines(buckets, byDay) {
   var plotW = W - padL - padR, plotH = H - padT - padB, n = keys.length;
   function x(i) { return n === 1 ? padL + plotW / 2 : padL + i * (plotW / (n - 1)); }
   function y(v) { return padT + plotH * (1 - v / max); }
-  function label(k) { return byDay ? String(parseInt(k.slice(8, 10), 10)) : MON[parseInt(k.slice(5, 7), 10) - 1]; }
+  // x-axis ticks: dd/mm for daily buckets, month name for monthly.
+  function label(k) { return byDay ? k.slice(8, 10) + '/' + k.slice(5, 7) : MON[parseInt(k.slice(5, 7), 10) - 1]; }
   function rlabel(k) {
     return byDay ? parseInt(k.slice(8, 10), 10) + ' ' + MON[parseInt(k.slice(5, 7), 10) - 1]
                  : MON[parseInt(k.slice(5, 7), 10) - 1] + ' ' + k.slice(0, 4);
   }
-  var step = Math.ceil(n / 8);   // at most ~8 x-axis labels so they don't crowd
+  var step = Math.ceil(n / (byDay ? 6 : 8));   // fewer ticks for wider dd/mm labels
 
   // Horizontal grid + y-axis value labels (TICKS+1 lines from 0 to max).
   var grid = '', yax = '', TICKS = 4, t;
