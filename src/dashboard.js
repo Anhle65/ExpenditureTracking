@@ -52,7 +52,8 @@ const pageJs = `
 var TX = __TX__, PRESETS = __PRESETS__, ACCOUNTS = __ACCOUNTS__;
 var curStart = PRESETS[0].start, curEnd = PRESETS[0].end;
 var curAccount = ACCOUNTS.indexOf('Spending') >= 0 ? 'Spending' : (ACCOUNTS[0] || 'All');
-var PALETTE = ['#f87171','#fbbf24','#34d399','#60a5fa','#a78bfa','#f472b6','#fb923c','#22d3ee','#a3e635','#e879f9','#94a3b8'];
+// High-contrast qualitative palette, ordered so consecutive slices differ strongly.
+var PALETTE = ['#ef4444','#3b82f6','#22c55e','#f59e0b','#a855f7','#ec4899','#06b6d4','#84cc16','#f97316','#14b8a6','#eab308','#94a3b8'];
 
 function compute() {
   var out = 0, inc = 0, outCats = {}, inCats = {}, months = {};
@@ -97,38 +98,66 @@ function spendingPie(map) {
             'stroke-dashoffset="' + (-start).toFixed(2) + '"></circle>';
     start += len;
   }
-  var svg = '<svg viewBox="0 0 120 120" class="pie"><g transform="rotate(-90 60 60)">' + segs + '</g>' +
+  // Amounts are masked ('•••') for privacy; tapping a legend colour reveals that
+  // category's amount, tapping the donut reveals the total.
+  var svg = '<svg viewBox="0 0 120 120" class="pie" onclick="revealTotal(this)"><g transform="rotate(-90 60 60)">' + segs + '</g>' +
             '<text x="60" y="57" class="pc-t" text-anchor="middle">Total</text>' +
-            '<text x="60" y="72" class="pc-v" text-anchor="middle">$' + total.toFixed(2) + '</text></svg>';
+            '<text x="60" y="72" class="pc-v" text-anchor="middle" data-amt="$' + total.toFixed(2) + '">•••</text></svg>';
   var legend = '<div class="legend">';
   for (i = 0; i < keys.length; i++) {
     var v = map[keys[i]];
-    legend += '<div class="lrow"><span class="sw" style="background:' + PALETTE[i % PALETTE.length] + '"></span>' +
+    legend += '<div class="lrow" onclick="revealRow(this)"><span class="sw" style="background:' + PALETTE[i % PALETTE.length] + '"></span>' +
               '<span class="lname">' + keys[i] + '</span>' +
-              '<span class="lval">$' + v.toFixed(2) + '</span>' +
+              '<span class="lval" data-amt="$' + v.toFixed(2) + '">•••</span>' +
               '<span class="lpct">' + (v / total * 100).toFixed(0) + '%</span></div>';
   }
   legend += '</div>';
-  return '<div class="pie-wrap">' + svg + legend + '</div>';
+  return '<div class="pie-wrap">' + svg + legend + '</div><p class="hint">Tap a colour to show its amount · tap the donut for the total</p>';
 }
 
-function trendRows(months) {
+function revealRow(el) {
+  var v = el.querySelector('.lval'), a = v.getAttribute('data-amt');
+  v.textContent = (v.textContent === a) ? '•••' : a;
+}
+function revealTotal(el) {
+  var v = el.querySelector('.pc-v'), a = v.getAttribute('data-amt');
+  v.textContent = (v.textContent === a) ? '•••' : a;
+}
+
+// Trend as an SVG line chart: an out line (red) and an in line (green) across
+// months. Shape shows the trend; exact amounts stay private (no value labels).
+function trendLines(months) {
   var keys = Object.keys(months).sort();
   if (!keys.length) return '<p class="empty">None in range.</p>';
+  var MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   var max = 1, i;
   for (i = 0; i < keys.length; i++) {
     if (months[keys[i]].out > max) max = months[keys[i]].out;
     if (months[keys[i]].inc > max) max = months[keys[i]].inc;
   }
-  var h = '';
+  var W = 320, H = 168, padL = 8, padR = 8, padT = 12, padB = 22;
+  var plotW = W - padL - padR, plotH = H - padT - padB, n = keys.length;
+  function x(i) { return n === 1 ? padL + plotW / 2 : padL + i * (plotW / (n - 1)); }
+  function y(v) { return padT + plotH * (1 - v / max); }
+
+  var outPts = '', inPts = '', dots = '', labels = '';
   for (i = 0; i < keys.length; i++) {
-    var k = keys[i], o = months[k].out, n = months[k].inc;
-    h += '<div class="trow"><div class="tmonth">' + k + '</div><div class="tbars">' +
-         '<div class="tline"><span class="ttrack"><span class="tb out" style="width:' + (o / max * 100).toFixed(1) + '%"></span></span><span class="tval out">-$' + o.toFixed(2) + '</span></div>' +
-         '<div class="tline"><span class="ttrack"><span class="tb in" style="width:' + (n / max * 100).toFixed(1) + '%"></span></span><span class="tval in">+$' + n.toFixed(2) + '</span></div>' +
-         '</div></div>';
+    var o = months[keys[i]].out, m = months[keys[i]].inc, px = x(i).toFixed(1);
+    outPts += px + ',' + y(o).toFixed(1) + ' ';
+    inPts += px + ',' + y(m).toFixed(1) + ' ';
+    dots += '<circle cx="' + px + '" cy="' + y(o).toFixed(1) + '" r="2.6" fill="#ef4444"></circle>' +
+            '<circle cx="' + px + '" cy="' + y(m).toFixed(1) + '" r="2.6" fill="#22c55e"></circle>';
+    labels += '<text x="' + px + '" y="' + (H - 7) + '" text-anchor="middle" class="ax">' +
+              MON[parseInt(keys[i].slice(5, 7), 10) - 1] + '</text>';
   }
-  return h;
+  var lines = '';
+  if (n >= 2) {
+    lines = '<polyline points="' + outPts.trim() + '" fill="none" stroke="#ef4444" stroke-width="2"></polyline>' +
+            '<polyline points="' + inPts.trim() + '" fill="none" stroke="#22c55e" stroke-width="2"></polyline>';
+  }
+  var legend = '<div class="tlegend"><span class="tk"><span class="dot out"></span>Out</span>' +
+               '<span class="tk"><span class="dot in"></span>In</span></div>';
+  return legend + '<svg viewBox="0 0 ' + W + ' ' + H + '" class="linechart">' + lines + dots + labels + '</svg>';
 }
 
 function render() {
@@ -140,7 +169,7 @@ function render() {
   n.className = 'amt ' + (net >= 0 ? 'in' : 'out');
   document.getElementById('outcats').innerHTML = spendingPie(r.outCats);
   document.getElementById('incats').innerHTML = catRows(r.inCats, 'in');
-  document.getElementById('trend').innerHTML = trendRows(r.months);
+  document.getElementById('trend').innerHTML = trendLines(r.months);
   document.getElementById('start').value = curStart;
   document.getElementById('end').value = curEnd;
 }
@@ -213,25 +242,23 @@ const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=de
   .empty{color:#888;font-size:13px;margin:4px 0}
   /* spending donut + legend: pie beside legend on wide, stacks on narrow */
   .pie-wrap{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:4px}
-  .pie{width:128px;height:128px;flex:0 0 auto}
+  .pie{width:128px;height:128px;flex:0 0 auto;cursor:pointer}
+  .hint{color:#777;font-size:11px;margin:8px 0 0}
   .pc-t{fill:#9a9a9a;font-size:9px;text-transform:uppercase}
   .pc-v{fill:#eee;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
   .legend{flex:1;min-width:150px}
-  .lrow{display:flex;align-items:center;gap:8px;margin:5px 0}
+  .lrow{display:flex;align-items:center;gap:8px;margin:5px 0;cursor:pointer}
   .sw{flex:0 0 auto;width:11px;height:11px;border-radius:2px}
   .lname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:#ccc}
   .lval{flex:0 0 auto;font-size:13px;font-variant-numeric:tabular-nums;color:#ddd}
   .lpct{flex:0 0 auto;width:40px;text-align:right;font-size:12px;color:#999;font-variant-numeric:tabular-nums}
-  /* trend: month label + stacked out/in bars */
-  .trow{display:flex;align-items:center;gap:8px;margin:9px 0}
-  .tmonth{flex:0 0 58px;font-size:12px;color:#bbb}
-  .tbars{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
-  .tline{display:flex;align-items:center;gap:6px}
-  .ttrack{flex:1;min-width:0;height:10px;background:#1d1d1d;border-radius:2px;overflow:hidden}
-  .tb{display:block;height:100%}
-  .tb.out{background:#f87} .tb.in{background:#7f7}
-  .tval{flex:0 0 auto;font-size:11px;font-variant-numeric:tabular-nums}
-  .tval.out{color:#f87} .tval.in{color:#7f7}
+  /* trend: SVG line chart (out red, in green) + small legend */
+  .tlegend{display:flex;gap:14px;font-size:12px;color:#bbb;margin:2px 0 2px}
+  .tk{display:flex;align-items:center;gap:5px}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+  .dot.out{background:#ef4444} .dot.in{background:#22c55e}
+  .linechart{width:100%;height:auto;display:block;margin-top:2px}
+  .ax{fill:#888;font-size:8px}
 </style></head><body>
   <div class="tabs accts" id="accts"></div>
   <div class="tabs" id="tabs"></div>
