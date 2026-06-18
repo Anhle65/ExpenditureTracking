@@ -140,3 +140,32 @@ const { x } = (typeof require !== 'undefined') ? require('./other') : importModu
 
 Only `parser.js` (imports `lines`) needs this today. `importModule('name')`
 resolves a sibling script by filename from the Scriptable folder.
+
+## UI / visual design (REQUIRED for any screen — WebView & native)
+
+This app runs only on iPhone, across a wide range of sizes — from **iPhone SE
+(small, ~320–375pt wide)** to **iPhone 15/Pro Max (~430pt wide)**. Every screen,
+chart, and result MUST be designed to fit all of them. **Visibility and a clear
+hierarchy are the top priority** — more important than density or decoration.
+
+**Hard rules:**
+- **No clipped, truncated, or overlapping text** ("overridden text"). Numbers
+  (amounts, totals) must never be cut off. If space is tight, let text **wrap**
+  or shrink — never hide meaning. Test mentally at the SE width first; if it fits
+  there, it fits everywhere.
+- **Responsive, not fixed.** In WebView/HTML: always include
+  `<meta name="viewport" content="width=device-width, initial-scale=1">`, use
+  fluid layouts (`flex`, `flex-wrap`, `%`/`fr`, `min-width:0`), and avoid fixed
+  pixel widths that overflow a narrow screen. Long labels get `overflow:hidden`
+  + `text-overflow:ellipsis` ONLY for secondary labels, never for amounts.
+- **Readable type & contrast.** Body text ≥ ~13–14px; primary figures larger.
+  Keep strong contrast on the dark theme (light text on `#111`).
+- **Clear hierarchy.** One obvious primary number per view (e.g. the period
+  total), section headings, then details. Group related rows; align amounts
+  right with `tabular-nums` so columns line up.
+- **Native UITable/Alert:** keep row titles/subtitles short so iOS doesn't
+  truncate them; put the amount in its own right-aligned cell; don't pack more
+  than title + subtitle + amount into a row.
+
+When adding or changing any UI, verify it reads cleanly at **both** the smallest
+(SE) and largest (Pro Max) widths before considering it done.
