@@ -4,7 +4,10 @@ const { isNoise, parseAmount, parseDate } =
   (typeof require !== 'undefined') ? require('./lines') : importModule('lines');
 
 const UNSIGNED_AMOUNT_RE = /^\$[\d,]+\.\d{2}$/;          // a balance (no sign)
-const ACCOUNT_LINE_RE = /^\d{2}-\d{3,4}-\d{5,7}-\d{1,3}$/; // bare account number
+// Bare account number, ALL-NUMERIC NZ format only (e.g. 12-3602-0581571-72).
+// Alphabetic-prefixed refs (e.g. FC01-…) are not matched and fall through to
+// desc. Treated as reference noise in both layouts (dropped, never a merchant).
+const ACCOUNT_LINE_RE = /^\d{2}-\d{3,4}-\d{5,7}-\d{1,3}$/;
 
 // Classify a line into granular types. The order matters: balances and account
 // numbers are split out from generic noise so the row-stacked layout can tell a

@@ -34,3 +34,15 @@ test('row-stacked pairs each signed amount with its preceding description, skipp
   assert.equal(transfer.direction, 'out');
   assert.equal(transfer.date, '2026-05-10');
 });
+
+test('column-zip drops bare account-number lines (reference noise, not a merchant)', () => {
+  // Intentional: account-number lines are reference rows, dropped in both layouts.
+  // Bank 1's transaction list never shows bare account numbers (its transfers use
+  // a "To:" prefix, which is kept); this pins the behavior so it can't silently change.
+  const text = 'FRI 12 JUN 2026\nSome Merchant\n12-3602-0581571-00\n-$10.00';
+  const { transactions, warnings } = parseWithProfile(text, BANK1, {});
+  assert.equal(transactions.length, 1);
+  assert.equal(transactions[0].merchant, 'Some Merchant');
+  assert.equal(transactions[0].amount, 10);
+  assert.deepEqual(warnings, []);
+});
