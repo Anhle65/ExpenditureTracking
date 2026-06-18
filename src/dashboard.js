@@ -125,7 +125,8 @@ function spendingPie(map) {
               '<span class="lpct">' + (v2 / total * 100).toFixed(0) + '%</span></div>';
   }
   legend += '</div>';
-  return '<div class="pie-wrap">' + svg + legend + '</div><p class="hint">Tap a colour to show that category in the centre · tap the centre for the total</p>';
+  return '<div class="pie-wrap"><div class="pie-box">' + svg + '</div>' + legend + '</div>' +
+         '<p class="hint">Tap a colour to show that category in the centre · tap the centre for the total</p>';
 }
 
 function trunc(s, n) { s = String(s); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
@@ -266,9 +267,10 @@ const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=de
   .val{flex:0 0 auto;font-size:13px;font-variant-numeric:tabular-nums;color:#ddd}
   .empty{color:#888;font-size:13px;margin:4px 0}
   /* spending donut + legend: pie beside legend on wide, stacks on narrow */
-  /* bigger pie; legend hugs its content so the % sits right next to the name */
-  .pie-wrap{display:flex;flex-wrap:wrap;gap:18px;align-items:center;margin-top:4px}
-  .pie{width:150px;height:150px;flex:0 0 auto}
+  /* pie stretches to fill the left; legend (name + %) sits on the right */
+  .pie-wrap{display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;margin-top:4px}
+  .pie-box{flex:1 1 160px;min-width:150px;max-width:260px}
+  .pie{width:100%;height:auto;display:block}
   .pie path,.pie circle{cursor:pointer}
   .hint{color:#777;font-size:11px;margin:8px 0 0}
   .pc-t{fill:#9a9a9a;font-size:9px;text-transform:uppercase}
