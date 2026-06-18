@@ -52,7 +52,8 @@ const pageJs = `
 var TX = __TX__, PRESETS = __PRESETS__, ACCOUNTS = __ACCOUNTS__;
 var curStart = PRESETS[0].start, curEnd = PRESETS[0].end;
 var curAccount = ACCOUNTS.indexOf('Spending') >= 0 ? 'Spending' : (ACCOUNTS[0] || 'All');
-var PALETTE = ['#f87171','#fbbf24','#34d399','#60a5fa','#a78bfa','#f472b6','#fb923c','#22d3ee','#a3e635','#e879f9','#94a3b8'];
+// High-contrast qualitative palette, ordered so consecutive slices differ strongly.
+var PALETTE = ['#ef4444','#3b82f6','#22c55e','#f59e0b','#a855f7','#ec4899','#06b6d4','#84cc16','#f97316','#14b8a6','#eab308','#94a3b8'];
 
 function compute() {
   var out = 0, inc = 0, outCats = {}, inCats = {}, months = {};
@@ -97,19 +98,30 @@ function spendingPie(map) {
             'stroke-dashoffset="' + (-start).toFixed(2) + '"></circle>';
     start += len;
   }
-  var svg = '<svg viewBox="0 0 120 120" class="pie"><g transform="rotate(-90 60 60)">' + segs + '</g>' +
+  // Amounts are masked ('•••') for privacy; tapping a legend colour reveals that
+  // category's amount, tapping the donut reveals the total.
+  var svg = '<svg viewBox="0 0 120 120" class="pie" onclick="revealTotal(this)"><g transform="rotate(-90 60 60)">' + segs + '</g>' +
             '<text x="60" y="57" class="pc-t" text-anchor="middle">Total</text>' +
-            '<text x="60" y="72" class="pc-v" text-anchor="middle">$' + total.toFixed(2) + '</text></svg>';
+            '<text x="60" y="72" class="pc-v" text-anchor="middle" data-amt="$' + total.toFixed(2) + '">•••</text></svg>';
   var legend = '<div class="legend">';
   for (i = 0; i < keys.length; i++) {
     var v = map[keys[i]];
-    legend += '<div class="lrow"><span class="sw" style="background:' + PALETTE[i % PALETTE.length] + '"></span>' +
+    legend += '<div class="lrow" onclick="revealRow(this)"><span class="sw" style="background:' + PALETTE[i % PALETTE.length] + '"></span>' +
               '<span class="lname">' + keys[i] + '</span>' +
-              '<span class="lval">$' + v.toFixed(2) + '</span>' +
+              '<span class="lval" data-amt="$' + v.toFixed(2) + '">•••</span>' +
               '<span class="lpct">' + (v / total * 100).toFixed(0) + '%</span></div>';
   }
   legend += '</div>';
-  return '<div class="pie-wrap">' + svg + legend + '</div>';
+  return '<div class="pie-wrap">' + svg + legend + '</div><p class="hint">Tap a colour to show its amount · tap the donut for the total</p>';
+}
+
+function revealRow(el) {
+  var v = el.querySelector('.lval'), a = v.getAttribute('data-amt');
+  v.textContent = (v.textContent === a) ? '•••' : a;
+}
+function revealTotal(el) {
+  var v = el.querySelector('.pc-v'), a = v.getAttribute('data-amt');
+  v.textContent = (v.textContent === a) ? '•••' : a;
 }
 
 function trendRows(months) {
@@ -213,11 +225,12 @@ const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=de
   .empty{color:#888;font-size:13px;margin:4px 0}
   /* spending donut + legend: pie beside legend on wide, stacks on narrow */
   .pie-wrap{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:4px}
-  .pie{width:128px;height:128px;flex:0 0 auto}
+  .pie{width:128px;height:128px;flex:0 0 auto;cursor:pointer}
+  .hint{color:#777;font-size:11px;margin:8px 0 0}
   .pc-t{fill:#9a9a9a;font-size:9px;text-transform:uppercase}
   .pc-v{fill:#eee;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
   .legend{flex:1;min-width:150px}
-  .lrow{display:flex;align-items:center;gap:8px;margin:5px 0}
+  .lrow{display:flex;align-items:center;gap:8px;margin:5px 0;cursor:pointer}
   .sw{flex:0 0 auto;width:11px;height:11px;border-radius:2px}
   .lname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:#ccc}
   .lval{flex:0 0 auto;font-size:13px;font-variant-numeric:tabular-nums;color:#ddd}
