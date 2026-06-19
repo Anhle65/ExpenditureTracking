@@ -24,6 +24,27 @@ These modules run and test on Linux — that's where the real logic risk lives.
 Scriptable glue (files, WebView, UITable, Shortcut) is verified manually on the
 phone.
 
+## REUSE, DECOUPLING & SOLID
+
+When adding or changing code, before writing anything new:
+
+- **Reuse, don't duplicate (DRY).** Check whether the logic already exists and
+  extract a shared unit instead of copy-pasting. Example: the account picker was
+  pulled into `accountPicker.js` and shared by `addExpense.js` and
+  `recategorize.js` rather than duplicated.
+- **Decouple by responsibility (SRP).** Keep **pure logic** (testable on Node),
+  **Scriptable glue** (Alert/WebView/FileManager/UITable), and **storage**
+  (`storeFile`) in distinct units talking through small, clear interfaces. Pure
+  logic must not import Scriptable-only modules, so it stays unit-testable.
+- **Follow SOLID generally** — depend on the narrow interface a unit needs, pass
+  dependencies in (e.g. `accountChoices(txns)` takes data rather than reaching
+  for the store) so functions stay pure and substitutable.
+
+**Balance against SIMPLICITY FIRST above:** decouple where it removes *real*
+duplication or keeps logic testable — do **not** add layers, abstractions, or
+indirection speculatively. The simplest design that is also DRY and testable
+wins.
+
 ---
 
 ## Project: Expenditure Tracker
