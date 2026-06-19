@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { categorize } = require('../src/categorizer');
+const { categorize, accountFor } = require('../src/categorizer');
 
 const RULES = [
   { pattern: 'sample mart', category: 'Groceries' },
@@ -36,4 +36,18 @@ test('override beats transfer detection', () => {
 test('ordinary merchants are not flagged as transfers', () => {
   assert.equal(categorize('Sample Mart D', RULES, {}), 'Groceries');
   assert.equal(categorize('Sample Cafe One', RULES, {}), 'Uncategorized');
+});
+
+test('accountFor returns a learned account override (case-insensitive key)', () => {
+  const acctOv = { 'sharesies': 'Investment' };
+  assert.equal(accountFor('Sharesies', acctOv, 'Spending'), 'Investment');
+});
+
+test('accountFor falls back when the merchant has no override', () => {
+  assert.equal(accountFor('Sample Mart D', { sharesies: 'Investment' }, 'Spending'), 'Spending');
+  assert.equal(accountFor('Sample Mart D', {}, 'Investment'), 'Investment');
+});
+
+test('accountFor defaults the fallback to Spending', () => {
+  assert.equal(accountFor('Unknown', {}), 'Spending');
 });

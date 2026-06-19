@@ -4,9 +4,11 @@
 // choice is remembered in overrides.json) or delete a wrong/duplicate entry.
 const storeFile = importModule('storeFile');
 const { DEFAULT_CATEGORIES } = importModule('categories');
+const { pickAccount } = importModule('accountPicker');
 
 const txns = storeFile.loadTransactions();
 const overrides = storeFile.loadOverrides();
+const accountOverrides = storeFile.loadAccountOverrides();
 const rules = storeFile.loadRules();
 
 function categoryChoices() {
@@ -54,11 +56,13 @@ async function chooseAction(t) {
   a.title = t.merchant;
   a.message = fmt(t);
   a.addAction('Recategorize');
+  a.addAction('Move to account…');
   a.addDestructiveAction('Delete');
   a.addCancelAction('Cancel');
   const idx = await a.presentSheet();
   if (idx === 0) return 'recategorize';
-  if (idx === 1) return 'delete';
+  if (idx === 1) return 'account';
+  if (idx === 2) return 'delete';
   return null;
 }
 
@@ -84,7 +88,7 @@ function render() {
     const row = new UITableRow();
     row.height = 52;
     const sign = t.direction === 'out' ? '-' : '+';
-    const title = row.addText(shorten(t.merchant, 28), `${t.date} · ${t.category}`);
+    const title = row.addText(shorten(t.merchant, 28), `${t.date} · ${t.category} · ${t.account || 'Spending'}`);
     title.widthWeight = 72;
     const amt = row.addText(`${sign}$${t.amount.toFixed(2)}`);
     amt.rightAligned();
@@ -98,6 +102,14 @@ function render() {
           overrides[t.merchant.toLowerCase()] = cat; // learn for future imports
           storeFile.saveTransactions(txns);
           storeFile.saveOverrides(overrides);
+        }
+      } else if (action === 'account') {
+        const account = await pickAccount({ message: `Currently: ${t.account || 'Spending'}` });
+        if (account) {
+          t.account = account;
+          accountOverrides[t.merchant.toLowerCase()] = account; // learn for future imports
+          storeFile.saveTransactions(txns);
+          storeFile.saveAccountOverrides(accountOverrides);
         }
       } else if (action === 'delete') {
         if (await confirmDelete(t)) {

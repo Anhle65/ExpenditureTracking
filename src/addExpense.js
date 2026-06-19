@@ -4,7 +4,8 @@
 // Scriptable home grid or a Home Screen icon. Saves to transactions.json with
 // source "manual".
 const { makeId } = importModule('store');
-const { DEFAULT_CATEGORIES, DEFAULT_ACCOUNTS } = importModule('categories');
+const { DEFAULT_CATEGORIES } = importModule('categories');
+const { pickAccount } = importModule('accountPicker');
 const storeFile = importModule('storeFile');
 
 async function note(message) {
@@ -71,34 +72,6 @@ async function askCustomCategory() {
   if (await a.presentAlert() !== 0) return null;
   const v = String(a.textFieldValue(0)).trim();
   return v || null;
-}
-
-function accountChoices() {
-  const set = new Set(DEFAULT_ACCOUNTS);
-  storeFile.loadTransactions().forEach(t => { if (t.account) set.add(t.account); });
-  return [...set];
-}
-
-async function pickAccount() {
-  const choices = accountChoices();
-  const a = new Alert();
-  a.title = 'Account';
-  choices.forEach(c => a.addAction(c));
-  a.addAction('➕ New account…');
-  a.addCancelAction('Cancel');
-  const idx = await a.presentSheet();
-  if (idx === -1) return null;
-  if (idx === choices.length) {
-    const c = new Alert();
-    c.title = 'New account';
-    c.addTextField('Account name, e.g. Savings');
-    c.addAction('OK');
-    c.addCancelAction('Cancel');
-    if (await c.presentAlert() !== 0) return null;
-    const v = String(c.textFieldValue(0)).trim();
-    return v || null;
-  }
-  return choices[idx];
 }
 
 async function pickDate() {

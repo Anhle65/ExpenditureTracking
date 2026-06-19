@@ -96,8 +96,12 @@ Transaction { id, date, amount, direction "out"|"in", merchant, category,
               account, source "ocr"|"manual", rawText }
 // account (default "Spending"): separates day-to-day spending from
 // "Investment"/savings. Dashboard has account tabs (default Spending) so a big
-// transfer in the Investment account never distorts spending. Imports tag
-// "Spending"; Add Expense picks the account. DEFAULT_ACCOUNTS in categories.js.
+// transfer in the Investment account never distorts spending. On import the
+// account is `categorizer.accountFor(merchant, accountOverrides, bank.defaultAccount)`
+// — a learned merchant→account override wins, else the bank's default. Add
+// Expense picks the account; Recategorize's "Move to account…" changes a row's
+// account AND learns the override. Account picker is shared in accountPicker.js;
+// pure choice list + accountFor are Node-tested. DEFAULT_ACCOUNTS in categories.js.
 // id = hash(date + amount + merchant)  → dedupe key
 ```
 
@@ -117,7 +121,8 @@ tagged once. The `isNoise` filter drops this bank's chrome (`2degrees`/mangled
 `degrees`, `< Accounts`, Pay/Details/More/Go nav).
 
 Files: `transactions.json`, `rules.json` (keyword→category),
-`overrides.json` (merchant→category, learned from manual fixes).
+`overrides.json` (merchant→category, learned from manual fixes),
+`accountOverrides.json` (merchant→account, learned from "Move to account…").
 
 ### Dev workflow (Linux → iPhone)
 

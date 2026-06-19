@@ -33,4 +33,13 @@ function renameCategory(data, oldName, newName) {
 // (bank 2). The dashboard filters by account; manual entries pick one.
 const DEFAULT_ACCOUNTS = ['Spending', 'Investment'];
 
-module.exports = { DEFAULT_CATEGORIES, DEFAULT_ACCOUNTS, renameCategory };
+// The account choices to offer: the defaults, plus any account already used on a
+// transaction (so user-created accounts persist), deduped with defaults first.
+// Pure — the picker UI lives in accountPicker.js and feeds it the transactions.
+function accountChoices(txns = [], accounts = DEFAULT_ACCOUNTS) {
+  const set = new Set(accounts);
+  txns.forEach(t => { if (t.account) set.add(t.account); });
+  return [...set];
+}
+
+module.exports = { DEFAULT_CATEGORIES, DEFAULT_ACCOUNTS, renameCategory, accountChoices };

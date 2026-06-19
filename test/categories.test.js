@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { renameCategory } = require('../src/categories');
+const { renameCategory, accountChoices, DEFAULT_ACCOUNTS } = require('../src/categories');
 
 test('renameCategory updates transactions, override values, and rules', () => {
   const data = {
@@ -31,4 +31,13 @@ test('renaming into an existing category merges them (delete = reassign)', () =>
   };
   renameCategory(data, 'Cafe/drink', 'Dining');
   assert.deepEqual(data.transactions.map(t => t.category), ['Dining', 'Dining']);
+});
+
+test('accountChoices starts from the defaults when no transactions use accounts', () => {
+  assert.deepEqual(accountChoices([]), DEFAULT_ACCOUNTS);
+});
+
+test('accountChoices merges in accounts already used on transactions, deduped, defaults first', () => {
+  const txns = [{ account: 'Spending' }, { account: 'Savings' }, { account: 'Investment' }, {}];
+  assert.deepEqual(accountChoices(txns), ['Spending', 'Investment', 'Savings']);
 });

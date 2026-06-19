@@ -24,6 +24,8 @@ const loadRules = () => readJson('rules.json', []);
 const saveRules = (r) => writeJson('rules.json', r);
 const loadOverrides = () => readJson('overrides.json', {});
 const saveOverrides = (o) => writeJson('overrides.json', o);
+const loadAccountOverrides = () => readJson('accountOverrides.json', {});
+const saveAccountOverrides = (o) => writeJson('accountOverrides.json', o);
 const loadBanks = () => readJson('banks.json', null);
 const saveBanks = (b) => writeJson('banks.json', b);
 const loadSettings = () => readJson('settings.json', {});
@@ -33,6 +35,7 @@ module.exports = {
   loadTransactions, saveTransactions,
   loadRules, saveRules,
   loadOverrides, saveOverrides,
+  loadAccountOverrides, saveAccountOverrides,
   loadBanks, saveBanks,
   loadSettings, saveSettings,
 };

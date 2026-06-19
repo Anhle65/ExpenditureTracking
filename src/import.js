@@ -5,7 +5,7 @@
 const { parseWithProfile } = importModule('engine');
 const { detectBank } = importModule('detect');
 const { BANK1, BANK2 } = importModule('profiles');
-const { categorize } = importModule('categorizer');
+const { categorize, accountFor } = importModule('categorizer');
 const { dedupe } = importModule('store');
 const storeFile = importModule('storeFile');
 
@@ -53,7 +53,11 @@ async function main() {
   if (!result) return;                          // cancelled
 
   const toSave = result.toSave;
-  toSave.forEach(t => { t.source = 'ocr'; t.account = t.account || bank.defaultAccount || 'Spending'; });
+  const accountOverrides = storeFile.loadAccountOverrides();
+  const bankDefault = bank.defaultAccount || 'Spending';
+  // A merchant tagged Investment (or any account) once is routed there on every
+  // future import, even from the Spending bank; otherwise it takes the bank default.
+  toSave.forEach(t => { t.source = 'ocr'; t.account = t.account || accountFor(t.merchant, accountOverrides, bankDefault); });
   storeFile.saveTransactions(existing.concat(toSave));
 
   const kept = toSave.length - added.length;    // flagged dups the user kept
