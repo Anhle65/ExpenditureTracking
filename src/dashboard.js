@@ -202,7 +202,7 @@ function trendLines(buckets, byDay) {
     if (buckets[keys[i]].inc > rawMax) rawMax = buckets[keys[i]].inc;
   }
   var max = niceCeil(rawMax);
-  var W = 320, H = 172, padL = 34, padR = 8, padT = 10, padB = 22;
+  var W = 320, H = 172, padL = 34, padR = 20, padT = 10, padB = 22;
   var plotW = W - padL - padR, plotH = H - padT - padB, n = keys.length;
   function x(i) { return n === 1 ? padL + plotW / 2 : padL + i * (plotW / (n - 1)); }
   function y(v) { return padT + plotH * (1 - v / max); }
