@@ -63,4 +63,21 @@ function dedupe(existing, incoming, opts = {}) {
   return { added, skipped };
 }
 
-module.exports = { fnv1a, makeId, dedupe };
+// Split `txns` into rows whose date falls in the inclusive [start, end] ISO
+// window (`removed`) and the rest (`kept`). Dates are YYYY-MM-DD strings, so a
+// lexicographic compare is also a chronological one. A row is only ever removed
+// when its date is a well-formed ISO date IN range — null/garbage dates are
+// always kept, since this backs a destructive delete and must not guess.
+function inDateRange(d, start, end) {
+  return typeof d === 'string' && /^\d{4}-\d{2}-\d{2}/.test(d) && d >= start && d <= end;
+}
+
+function partitionByDateRange(txns, start, end) {
+  const kept = [], removed = [];
+  for (const t of txns) {
+    (inDateRange(t && t.date, start, end) ? removed : kept).push(t);
+  }
+  return { kept, removed };
+}
+
+module.exports = { fnv1a, makeId, dedupe, partitionByDateRange };

@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { makeId, dedupe } = require('../src/store');
+const { makeId, dedupe, partitionByDateRange } = require('../src/store');
 
 const txn = (date, amount, merchant, extra = {}) =>
   ({ date, amount, merchant, direction: 'out', ...extra });
@@ -70,4 +70,31 @@ test('dedupe keeps an uncertain row that falls outside the day window', () => {
   const { added, skipped } = dedupe(existing, incoming, { windowDays: 2 });
   assert.equal(added.length, 1);
   assert.equal(skipped.length, 0);
+});
+
+test('partitionByDateRange splits on an inclusive [start, end] window', () => {
+  const txns = [
+    stored('2026-06-09', 1, 'A'),  // before
+    stored('2026-06-10', 2, 'B'),  // start boundary — removed
+    stored('2026-06-12', 3, 'C'),  // inside — removed
+    stored('2026-06-15', 4, 'D'),  // end boundary — removed
+    stored('2026-06-16', 5, 'E'),  // after
+  ];
+  const { kept, removed } = partitionByDateRange(txns, '2026-06-10', '2026-06-15');
+  assert.deepEqual(removed.map(t => t.merchant), ['B', 'C', 'D']);
+  assert.deepEqual(kept.map(t => t.merchant), ['A', 'E']);
+});
+
+test('partitionByDateRange removes nothing when the window misses every row', () => {
+  const txns = [stored('2026-06-09', 1, 'A'), stored('2026-06-16', 5, 'E')];
+  const { kept, removed } = partitionByDateRange(txns, '2026-06-10', '2026-06-15');
+  assert.equal(removed.length, 0);
+  assert.equal(kept.length, 2);
+});
+
+test('partitionByDateRange treats a non-date row as outside the window (kept)', () => {
+  const txns = [stored('2026-06-12', 3, 'C'), { merchant: 'X', amount: 1, date: null }];
+  const { kept, removed } = partitionByDateRange(txns, '2026-06-10', '2026-06-15');
+  assert.deepEqual(removed.map(t => t.merchant), ['C']);
+  assert.deepEqual(kept.map(t => t.merchant), ['X']);
 });
