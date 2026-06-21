@@ -86,7 +86,7 @@ function render() {
   table.removeAllRows();
   for (const t of txns) {
     const row = new UITableRow();
-    row.height = 66;   // roomier than the default 44 so rows don't feel cramped
+    row.height = 60;   // roomier than the default 44 so rows don't feel cramped
     const sign = t.direction === 'out' ? '-' : '+';
     const title = row.addText(shorten(t.merchant, 28), `${t.date} · ${t.category} · ${t.account || 'Spending'}`);
     title.widthWeight = 72;
