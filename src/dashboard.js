@@ -373,7 +373,10 @@ const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=de
     --out:#c0392b; --in:#15803d; --grid:rgba(0,0,0,.12);
   }
   *{box-sizing:border-box}
-  html,body{overflow-x:hidden}
+  /* overflow-x:clip clips horizontal overflow WITHOUT making body a scroll
+     container, so the sticky .filters bar below keeps working. hidden is the
+     fallback for iOS < 16 (clip line is then ignored). */
+  html,body{overflow-x:hidden;overflow-x:clip}
   body{font:16px -apple-system;margin:0;padding:14px;background:var(--bg);color:var(--text)}
   h2{font-size:14px;color:var(--accent);margin:20px 0 8px}
   .topbar{display:flex;justify-content:flex-end;margin-bottom:6px}
@@ -384,6 +387,15 @@ const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=de
   .accts .tab.active{background:var(--accent);color:var(--accent-fg)}
   .dates{display:flex;gap:8px;align-items:center;margin:6px 0 12px}
   .dates .arrow{color:var(--muted);flex:0 0 auto}
+  /* Floating filter bar: account tabs + date presets + start/end inputs stay
+     pinned to the top as the cards scroll under them. Negative side margins +
+     matching padding let the opaque bar span the full width (body has 14px
+     padding) so scrolling content never peeks past its edges. */
+  .filters{position:sticky;top:0;z-index:20;background:var(--bg);
+    margin:0 -14px 12px;padding:6px 14px 10px;
+    border-bottom:1px solid var(--border);box-shadow:0 3px 8px rgba(0,0,0,.22)}
+  .filters .tabs{margin-bottom:6px}
+  .filters .dates{margin:6px 0 0}
   input[type=date]{flex:1;min-width:0;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 7px;font:13px -apple-system}
   /* Every display section sits in a card whose background matches the filter
      buttons (var(--surface)), set off against the page background. */
@@ -439,12 +451,14 @@ const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=de
   .mk-in{fill:#22c55e;stroke:var(--surface);stroke-width:1.5}
 </style></head><body>
   <div class="topbar"><button class="tbtn" id="theme" onclick="toggleTheme()" aria-label="Toggle theme">☀</button></div>
-  <div class="tabs accts" id="accts"></div>
-  <div class="tabs" id="tabs"></div>
-  <div class="dates">
-    <input type="date" id="start" onchange="onDate()">
-    <span class="arrow">→</span>
-    <input type="date" id="end" onchange="onDate()">
+  <div class="filters">
+    <div class="tabs accts" id="accts"></div>
+    <div class="tabs" id="tabs"></div>
+    <div class="dates">
+      <input type="date" id="start" onchange="onDate()">
+      <span class="arrow">→</span>
+      <input type="date" id="end" onchange="onDate()">
+    </div>
   </div>
   <div class="summary">
     <div class="cell"><div class="cap">Out</div><div class="amt out" id="out">-$0.00</div></div>
