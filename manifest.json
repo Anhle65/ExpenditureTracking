@@ -9,6 +9,7 @@
   "src/store.js",
   "src/aggregate.js",
   "src/storeFile.js",
+  "src/accountPicker.js",
   "src/import.js",
   "src/dashboard.js",
   "src/recategorize.js",
