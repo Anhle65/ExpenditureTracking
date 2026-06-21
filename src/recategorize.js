@@ -93,6 +93,13 @@ function render() {
     const amt = row.addText(`${sign}$${t.amount.toFixed(2)}`);
     amt.rightAligned();
     amt.widthWeight = 28;
+    // Highlight still-uncategorized rows so they're easy to spot and fix.
+    // orange reads on both the light and dark native table appearance.
+    if ((t.category || 'Uncategorized') === 'Uncategorized') {
+      title.titleColor = Color.orange();
+      title.subtitleColor = Color.orange();
+      amt.titleColor = Color.orange();
+    }
     row.onSelect = async () => {
       const action = await chooseAction(t);
       if (action === 'recategorize') {
