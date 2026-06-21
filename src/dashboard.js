@@ -401,6 +401,14 @@ const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=de
      buttons (var(--surface)), set off against the page background. */
   .card{background:var(--surface);border-radius:12px;padding:12px;margin:0 0 12px}
   .card h2{margin-top:0}
+  /* Landscape: the wide screen wastes space as one tall column, so flow the
+     cards into two columns. The trend (a time series) spans the full width.
+     Summary + sticky filter bar stay full-width above. Portrait is unaffected. */
+  @media (orientation: landscape){
+    .cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+    .cards .card{margin:0}
+    .cards .card.trend{grid-column:1 / -1}
+  }
   /* Out / In / Net header — one card, three transparent equal cells */
   .summary{display:flex;gap:8px;background:var(--surface);border-radius:12px;padding:12px;margin:4px 0 12px}
   .cell{flex:1;min-width:0;padding:2px 6px;text-align:center}
@@ -465,9 +473,11 @@ const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=de
     <div class="cell"><div class="cap">In</div><div class="amt in" id="in">+$0.00</div></div>
     <div class="cell"><div class="cap">Net</div><div class="amt" id="net">$0.00</div></div>
   </div>
-  <div class="card"><h2>Spending by category</h2><div id="outcats"></div></div>
-  <div class="card"><h2>Income by category</h2><div id="incats"></div></div>
-  <div class="card"><h2>Trend (out vs in)</h2><div id="trend"></div></div>
+  <div class="cards">
+    <div class="card"><h2>Spending by category</h2><div id="outcats"></div></div>
+    <div class="card"><h2>Income by category</h2><div id="incats"></div></div>
+    <div class="card trend"><h2>Trend (out vs in)</h2><div id="trend"></div></div>
+  </div>
   <script>${pageJs}</script>
 </body></html>`;
 
