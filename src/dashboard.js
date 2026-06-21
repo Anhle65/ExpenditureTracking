@@ -111,7 +111,10 @@ function spendingPie(map) {
   // Amounts are private (not shown on screen); tapping a slice or its legend
   // colour pops a tooltip with that category's amount. Slices are individual
   // SVG paths so each is tappable.
-  // Each slice is its own tappable SVG path, with its % drawn on the slice.
+  // Each slice is its own tappable SVG path. Its % is drawn ON the slice only
+  // when the slice is big enough to fit a readable label; smaller slices would
+  // collide at the donut's edge, so they show their % in the legend instead.
+  var MIN_LABEL_PCT = 5;
   var cx = 60, cy = 60, ro = 46, ri = 30, a0 = -Math.PI / 2, slices = '', plabels = '';
   for (i = 0; i < keys.length; i++) {
     var v = map[keys[i]], color = PALETTE[i % PALETTE.length], amt = '$' + v.toFixed(2);
@@ -124,7 +127,7 @@ function spendingPie(map) {
       var a1 = a0 + (v / total) * 2 * Math.PI;
       slices += '<path d="' + arc(cx, cy, ro, ri, a0, a1) + '" fill="' + color +
                 '" data-cat="' + keys[i] + '" data-amt="' + amt + '" onclick="setCenter(this)"></path>';
-      plabels += pctLabel(cx, cy, (ro + ri) / 2, (a0 + a1) / 2, pct);  // label every slice, incl. the smallest
+      if (pct >= MIN_LABEL_PCT) plabels += pctLabel(cx, cy, (ro + ri) / 2, (a0 + a1) / 2, pct);
       a0 = a1;
     }
   }
@@ -140,7 +143,8 @@ function spendingPie(map) {
     var v2 = map[keys[i]];
     legend += '<div class="lrow" data-cat="' + keys[i] + '" data-amt="$' + v2.toFixed(2) + '" onclick="setCenter(this)">' +
               '<span class="sw" style="background:' + PALETTE[i % PALETTE.length] + '"></span>' +
-              '<span class="lname">' + keys[i] + '</span></div>';
+              '<span class="lname">' + keys[i] + '</span>' +
+              '<span class="lpct">' + (v2 / total * 100).toFixed(0) + '%</span></div>';
   }
   legend += '</div>';
   return '<div class="pie-wrap"><div class="pie-box">' + svg + '</div>' + legend + '</div>' +
@@ -214,6 +218,24 @@ function trendLines(buckets, byDay) {
   }
   var step = Math.ceil(n / (byDay ? 6 : 8));   // fewer ticks for wider dd/mm labels
 
+  // x-axis tick indices: every step-th bucket plus the always-shown last one.
+  // Then drop any tick that sits within a label-width of the last, so the final
+  // date never collides with the tick before it (e.g. 20/06 vs 21/06).
+  var MIN_TICK_GAP = 26;   // ~width of a "dd/mm" label in viewBox units, + air
+  var cand = [];
+  for (i = 0; i < n; i++) if (i % step === 0) cand.push(i);
+  if (cand[cand.length - 1] !== n - 1) cand.push(n - 1);
+  var tickSet = {}, kept = [cand[0]];
+  for (i = 1; i < cand.length; i++) {
+    if (cand[i] === n - 1) {                                   // last label wins
+      while (kept.length > 1 && x(n - 1) - x(kept[kept.length - 1]) < MIN_TICK_GAP) kept.pop();
+      kept.push(n - 1);
+    } else if (x(cand[i]) - x(kept[kept.length - 1]) >= MIN_TICK_GAP) {
+      kept.push(cand[i]);
+    }
+  }
+  for (i = 0; i < kept.length; i++) tickSet[kept[i]] = 1;
+
   // Horizontal grid + y-axis value labels (TICKS+1 lines from 0 to max).
   var grid = '', yax = '', TICKS = 4, t;
   for (t = 0; t <= TICKS; t++) {
@@ -231,7 +253,7 @@ function trendLines(buckets, byDay) {
     inPts += px + ',' + my + ' ';
     dots += '<circle cx="' + px + '" cy="' + oy + '" r="2.6" fill="#ef4444"></circle>' +
             '<circle cx="' + px + '" cy="' + my + '" r="2.6" fill="#22c55e"></circle>';
-    if (i % step === 0 || i === n - 1) {
+    if (tickSet[i]) {
       labels += '<text x="' + px + '" y="' + (H - 7) + '" text-anchor="middle" class="ax">' + label(keys[i]) + '</text>';
     }
     xs.push(parseFloat(px)); outv.push(o); inv.push(m);
