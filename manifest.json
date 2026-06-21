@@ -14,6 +14,7 @@
   "src/recategorize.js",
   "src/addExpense.js",
   "src/manageCategories.js",
+  "src/datePicker.js",
   "src/resetData.js",
   "seedRules.js"
 ]
