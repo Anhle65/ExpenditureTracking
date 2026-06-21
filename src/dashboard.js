@@ -345,6 +345,15 @@ function onDate() {
   highlight('tabs', 0);
   applyTheme();
   render();
+
+  // Tap-to-toggle the pinned filter bar. Ignore taps on interactive controls
+  // (tabs, date inputs, theme button, chart svg, legend rows) so toggling never
+  // steals a real interaction; any other tap (card, heading, empty space, the
+  // summary) hides or re-shows the bar.
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('.filters,.tab,.lrow,svg,input,button,a,label')) return;
+    document.body.classList.toggle('filters-hidden');
+  });
 })();
 `.replace('__TX__', JSON.stringify(slim))
  .replace('__PRESETS__', JSON.stringify(PRESETS))
@@ -392,10 +401,15 @@ const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=de
      matching padding let the opaque bar span the full width (body has 14px
      padding) so scrolling content never peeks past its edges. */
   .filters{position:sticky;top:0;z-index:20;background:var(--bg);
-    margin:0 -14px 12px;padding:6px 14px 10px;
-    border-bottom:1px solid var(--border);box-shadow:0 3px 8px rgba(0,0,0,.22)}
+    margin:0 -14px 12px;padding:6px 14px 10px;overflow:hidden;max-height:340px;
+    border-bottom:1px solid var(--border);box-shadow:0 3px 8px rgba(0,0,0,.22);
+    transition:max-height .25s ease,opacity .2s ease,padding .25s ease}
   .filters .tabs{margin-bottom:6px}
   .filters .dates{margin:6px 0 0}
+  /* Tap any non-control part of the page to hide the bar (collapses to 0 and
+     reclaims its space); tap again to bring it back. See the click handler. */
+  body.filters-hidden .filters{max-height:0;opacity:0;padding-top:0;padding-bottom:0;
+    border-bottom-width:0;box-shadow:none;pointer-events:none}
   input[type=date]{flex:1;min-width:0;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 7px;font:13px -apple-system}
   /* Every display section sits in a card whose background matches the filter
      buttons (var(--surface)), set off against the page background. */
